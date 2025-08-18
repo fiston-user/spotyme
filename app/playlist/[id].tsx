@@ -2,22 +2,24 @@ import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
-  FlatList, 
+  ScrollView, 
   StyleSheet,
   Image,
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  Linking
+  Linking,
+  Dimensions,
+  StatusBar
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { SongCard } from '../../components/SongCard';
-import { Button } from '../../components/ui/Button';
 import { apiService } from '../../services/api';
-import { Card } from '../../components/ui/Card';
+import { BlurView } from 'expo-blur';
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
@@ -158,122 +160,234 @@ export default function PlaylistDetailScreen() {
     );
   }
 
+  const formatTrackDuration = (ms: number) => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+  };
+
   return (
     <View style={styles.container}>
-      <FlatList
-        data={playlist.tracks || []}
-        keyExtractor={(item, index) => item.spotifyId || index.toString()}
-        ListHeaderComponent={
-          <>
-            <LinearGradient
-              colors={Colors.gradients.blue as any}
-              style={styles.header}
+      <StatusBar barStyle="light-content" />
+      
+      <ScrollView 
+        showsVerticalScrollIndicator={false}
+        bounces={true}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Immersive Header with Parallax Effect */}
+        <View style={styles.headerContainer}>
+          {playlist.tracks?.[0]?.albumArt && (
+            <>
+              <Image 
+                source={{ uri: playlist.tracks[0].albumArt }} 
+                style={styles.headerBackgroundImage}
+                blurRadius={30}
+              />
+              <LinearGradient
+                colors={['rgba(0, 0, 0, 0.3)', 'rgba(18, 18, 18, 0.9)', Colors.background]}
+                style={styles.headerGradient}
+                locations={[0, 0.7, 1]}
+              />
+            </>
+          )}
+          <View style={styles.headerContent}>
+            {/* Back Button */}
+            <TouchableOpacity 
+              style={styles.backButton}
+              onPress={() => router.back()}
+              activeOpacity={0.7}
             >
-              <TouchableOpacity 
-                style={styles.backButton}
-                onPress={() => router.back()}
-              >
-                <Ionicons name="arrow-back" size={24} color={Colors.text} />
-              </TouchableOpacity>
-              
-              {playlist.tracks?.[0]?.albumArt && (
+              <BlurView intensity={80} style={styles.backButtonBlur}>
+                <Ionicons name="arrow-back" size={22} color={Colors.text} />
+              </BlurView>
+            </TouchableOpacity>
+            
+            {/* More Options Button with Delete */}
+            <TouchableOpacity 
+              style={styles.moreButton}
+              onPress={() => {
+                Alert.alert(
+                  'Playlist Options',
+                  '',
+                  [
+                    {
+                      text: 'Delete Playlist',
+                      style: 'destructive',
+                      onPress: handleDeletePlaylist,
+                    },
+                    {
+                      text: 'Cancel',
+                      style: 'cancel',
+                    },
+                  ]
+                );
+              }}
+              activeOpacity={0.7}
+            >
+              <BlurView intensity={80} style={styles.moreButtonBlur}>
+                <MaterialIcons name="more-vert" size={22} color={Colors.text} />
+              </BlurView>
+            </TouchableOpacity>
+            
+            {/* Playlist Artwork */}
+            <View style={styles.artworkContainer}>
+              {playlist.tracks?.[0]?.albumArt ? (
                 <Image 
                   source={{ uri: playlist.tracks[0].albumArt }} 
                   style={styles.coverArt}
                 />
-              )}
-              <Text style={styles.playlistName}>{playlist.name}</Text>
-              <Text style={styles.playlistDescription}>{playlist.description}</Text>
-              <Text style={styles.playlistStats}>
-                {playlist.tracks?.length || 0} tracks • {formatDuration(playlist.totalDuration || 0)}
-              </Text>
-            </LinearGradient>
-
-            <View style={styles.controls}>
-              {spotifyUrl ? (
-                <Button
-                  title="Open in Spotify"
-                  onPress={() => Linking.openURL(spotifyUrl)}
-                  variant="primary"
-                  size="large"
-                  style={styles.playButton}
-                />
               ) : (
-                <Button
-                  title={isExporting ? "Exporting..." : "Export to Spotify"}
-                  onPress={handleExportToSpotify}
-                  variant="primary"
-                  size="large"
-                  disabled={isExporting}
-                  style={styles.playButton}
+                <View style={styles.coverArtPlaceholder}>
+                  <MaterialIcons name="library-music" size={60} color={Colors.textSecondary} />
+                </View>
+              )}
+            </View>
+            
+            {/* Playlist Info */}
+            <View style={styles.playlistInfo}>
+              <Text style={styles.playlistName} numberOfLines={2}>{playlist.name}</Text>
+              {playlist.description && (
+                <Text style={styles.playlistDescription} numberOfLines={2}>
+                  {playlist.description}
+                </Text>
+              )}
+              
+              <View style={styles.playlistMeta}>
+                <View style={styles.metaItem}>
+                  <MaterialIcons name="queue-music" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.metaText}>{playlist.tracks?.length || 0} tracks</Text>
+                </View>
+                <View style={styles.metaDivider} />
+                <View style={styles.metaItem}>
+                  <MaterialIcons name="schedule" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.metaText}>{formatDuration(playlist.totalDuration || 0)}</Text>
+                </View>
+                {playlist.createdAt && (
+                  <>
+                    <View style={styles.metaDivider} />
+                    <View style={styles.metaItem}>
+                      <MaterialIcons name="calendar-today" size={16} color={Colors.textSecondary} />
+                      <Text style={styles.metaText}>
+                        {new Date(playlist.createdAt).toLocaleDateString()}
+                      </Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            </View>
+          </View>
+        </View>
+
+        {/* Action Buttons Section */}
+        <View style={styles.actionSection}>
+          <View style={styles.mainActions}>
+            {spotifyUrl ? (
+              <TouchableOpacity
+                style={styles.primaryActionButton}
+                onPress={() => Linking.openURL(spotifyUrl)}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.green as any}
+                  style={styles.actionButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <MaterialIcons name="play-circle-filled" size={24} color={Colors.background} />
+                  <Text style={styles.actionButtonText}>Play on Spotify</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={styles.primaryActionButton}
+                onPress={handleExportToSpotify}
+                disabled={isExporting}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={isExporting ? [Colors.surface, Colors.surface] : Colors.gradients.green as any}
+                  style={styles.actionButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {isExporting ? (
+                    <ActivityIndicator size="small" color={Colors.text} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="cloud-upload" size={20} color={Colors.background} />
+                      <Text style={styles.actionButtonText}>Export to Spotify</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity
+              style={styles.secondaryActionButton}
+              onPress={() => Alert.alert('Shuffle Play', 'This feature is coming soon!')}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="shuffle" size={20} color={Colors.primary} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Track List Section */}
+        <View style={styles.tracksSection}>
+          <View style={styles.tracksSectionHeader}>
+            <Text style={styles.sectionTitle}>Tracks</Text>
+            <TouchableOpacity 
+              style={styles.sortButton}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="sort" size={18} color={Colors.textSecondary} />
+              <Text style={styles.sortButtonText}>Original</Text>
+            </TouchableOpacity>
+          </View>
+          
+          {playlist.tracks?.map((track: any, index: number) => (
+            <TouchableOpacity
+              key={track.spotifyId || index}
+              style={[
+                styles.trackRow,
+                index === 0 && styles.firstTrack,
+                index === playlist.tracks.length - 1 && styles.lastTrack
+              ]}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.trackIndex}>{index + 1}</Text>
+              
+              {track.albumArt && (
+                <Image 
+                  source={{ uri: track.albumArt }} 
+                  style={styles.trackAlbumArt}
                 />
               )}
-              <Button
-                title={isDeleting ? "Deleting..." : "Delete"}
-                onPress={handleDeletePlaylist}
-                variant="outline"
-                size="large"
-                disabled={isDeleting}
-                style={styles.deleteButton}
-              />
-            </View>
-
-            {playlist.generationParams && (
-              <Card style={styles.paramsCard}>
-                <Text style={styles.paramsTitle}>Generation Settings</Text>
-                <View style={styles.paramRow}>
-                  <Text style={styles.paramLabel}>Energy</Text>
-                  <View style={styles.paramBar}>
-                    <View 
-                      style={[
-                        styles.paramFill, 
-                        { width: `${(playlist.generationParams.targetEnergy || 0.5) * 100}%` }
-                      ]} 
-                    />
-                  </View>
-                  <Text style={styles.paramValue}>
-                    {Math.round((playlist.generationParams.targetEnergy || 0.5) * 100)}%
-                  </Text>
-                </View>
-                <View style={styles.paramRow}>
-                  <Text style={styles.paramLabel}>Mood</Text>
-                  <View style={styles.paramBar}>
-                    <View 
-                      style={[
-                        styles.paramFill, 
-                        { width: `${(playlist.generationParams.targetValence || 0.5) * 100}%` }
-                      ]} 
-                    />
-                  </View>
-                  <Text style={styles.paramValue}>
-                    {Math.round((playlist.generationParams.targetValence || 0.5) * 100)}%
-                  </Text>
-                </View>
-              </Card>
-            )}
-
-            <Text style={styles.songsTitle}>Tracks</Text>
-          </>
-        }
-        renderItem={({ item, index }) => (
-          <View style={styles.songRow}>
-            <Text style={styles.songIndex}>{index + 1}</Text>
-            <View style={styles.trackInfo}>
-              <Text style={styles.trackTitle} numberOfLines={1}>
-                {item.name}
-              </Text>
-              <Text style={styles.trackArtist} numberOfLines={1}>
-                {item.artist} • {item.album}
-              </Text>
-            </View>
-            <Text style={styles.trackDuration}>
-              {Math.floor(item.duration / 60000)}:{((item.duration % 60000) / 1000).toFixed(0).padStart(2, '0')}
-            </Text>
-          </View>
-        )}
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+              
+              <View style={styles.trackInfo}>
+                <Text style={styles.trackTitle} numberOfLines={1}>
+                  {track.name}
+                </Text>
+                <Text style={styles.trackArtist} numberOfLines={1}>
+                  {track.artist}
+                </Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={styles.trackMoreButton}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons name="more-horiz" size={20} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </TouchableOpacity>
+          ))}
+        </View>
+        
+        {/* Bottom Spacing */}
+        <View style={{ height: 40 }} />
+      </ScrollView>
     </View>
   );
 }
@@ -282,6 +396,31 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  headerContainer: {
+    height: 480,
+    position: 'relative',
+  },
+  headerBackgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  headerGradient: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+  },
+  headerContent: {
+    flex: 1,
+    paddingTop: 60,
+    paddingHorizontal: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -307,150 +446,205 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     marginTop: 16,
   },
-  header: {
-    padding: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
-    alignItems: 'center',
-  },
   backButton: {
     position: 'absolute',
     top: 60,
     left: 20,
-    zIndex: 1,
+    zIndex: 10,
   },
-  coverArt: {
-    width: 200,
-    height: 200,
-    borderRadius: 8,
-    marginBottom: 20,
+  backButtonBlur: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  moreButton: {
+    position: 'absolute',
+    top: 60,
+    right: 20,
+    zIndex: 10,
+  },
+  moreButtonBlur: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  artworkContainer: {
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 5,
-    elevation: 8,
+    shadowOpacity: 0.4,
+    shadowRadius: 16,
+    elevation: 12,
+  },
+  coverArt: {
+    width: 220,
+    height: 220,
+    borderRadius: 16,
+  },
+  coverArtPlaceholder: {
+    width: 220,
+    height: 220,
+    borderRadius: 16,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  playlistInfo: {
+    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   playlistName: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: Colors.text,
-    marginBottom: 8,
     textAlign: 'center',
+    marginBottom: 8,
   },
   playlistDescription: {
-    fontSize: 16,
-    color: Colors.text,
-    opacity: 0.9,
-    marginBottom: 8,
+    fontSize: 15,
+    color: Colors.textSecondary,
     textAlign: 'center',
+    marginBottom: 16,
+    lineHeight: 20,
   },
-  playlistStats: {
-    fontSize: 14,
-    color: Colors.text,
-    opacity: 0.8,
-  },
-  controls: {
-    flexDirection: 'row',
-    paddingHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 10,
-  },
-  playButton: {
-    flex: 1,
-    marginRight: 10,
-  },
-  shuffleButton: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  deleteButton: {
-    flex: 1,
-    marginLeft: 10,
-    borderColor: '#FF6B6B',
-  },
-  paramsCard: {
-    margin: 16,
-    padding: 16,
-  },
-  paramsTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  paramRow: {
+  playlistMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    justifyContent: 'center',
+    flexWrap: 'wrap',
   },
-  paramLabel: {
-    width: 60,
-    fontSize: 12,
+  metaItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  metaText: {
+    fontSize: 13,
     color: Colors.textSecondary,
   },
-  paramBar: {
-    flex: 1,
-    height: 4,
+  metaDivider: {
+    width: 1,
+    height: 14,
     backgroundColor: Colors.border,
-    borderRadius: 2,
     marginHorizontal: 12,
   },
-  paramFill: {
-    height: 4,
-    backgroundColor: Colors.primary,
-    borderRadius: 2,
+  actionSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 8,
   },
-  paramValue: {
-    width: 40,
-    fontSize: 12,
-    color: Colors.text,
-    textAlign: 'right',
+  mainActions: {
+    flexDirection: 'row',
+    gap: 12,
   },
-  songsTitle: {
+  primaryActionButton: {
+    flex: 1,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  actionButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  actionButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.background,
+  },
+  secondaryActionButton: {
+    width: 50,
+    height: 50,
+    borderRadius: 25,
+    backgroundColor: Colors.surface,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 2,
+    borderColor: Colors.primary,
+  },
+  tracksSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  tracksSectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: Colors.text,
-    marginHorizontal: 20,
-    marginTop: 20,
-    marginBottom: 10,
   },
-  songRow: {
+  sortButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
   },
-  songIndex: {
-    width: 30,
-    textAlign: 'center',
+  sortButtonText: {
+    fontSize: 13,
     color: Colors.textSecondary,
+  },
+  trackRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: Colors.surface,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 1,
+  },
+  firstTrack: {
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  lastTrack: {
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 12,
+    marginBottom: 0,
+  },
+  trackIndex: {
+    width: 24,
     fontSize: 14,
+    color: Colors.textTertiary,
+    textAlign: 'center',
+    marginRight: 12,
+  },
+  trackAlbumArt: {
+    width: 44,
+    height: 44,
+    borderRadius: 8,
+    marginRight: 12,
   },
   trackInfo: {
     flex: 1,
-    marginLeft: 12,
-    marginRight: 12,
   },
   trackTitle: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: 15,
+    fontWeight: '600',
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 3,
   },
   trackArtist: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
   },
-  trackDuration: {
-    fontSize: 12,
-    color: Colors.textSecondary,
-  },
-  listContent: {
-    paddingBottom: 40,
+  trackMoreButton: {
+    padding: 4,
   },
 });

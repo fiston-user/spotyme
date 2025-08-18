@@ -7,16 +7,21 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
-  RefreshControl
+  RefreshControl,
+  Dimensions,
+  ScrollView
 } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Playlist } from '../../constants/MockData';
 import { PlaylistCard } from '../../components/PlaylistCard';
 import { Button } from '../../components/ui/Button';
 import { apiService } from '../../services/api';
+import { BlurView } from 'expo-blur';
+
+const { width: screenWidth } = Dimensions.get('window');
 
 export default function PlaylistsScreen() {
   const router = useRouter();
@@ -91,16 +96,44 @@ export default function PlaylistsScreen() {
 
   return (
     <View style={styles.container}>
+      {/* Enhanced Header with Gradient */}
       <LinearGradient
-        colors={Colors.gradients.green as any}
+        colors={[Colors.primary, Colors.background]}
         style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        locations={[0, 0.8]}
       >
-        <Text style={styles.headerTitle}>Your Playlists</Text>
-        <Text style={styles.headerSubtitle}>
-          {playlists.length} playlists • Curated just for you
-        </Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerLabel}>YOUR LIBRARY</Text>
+            <TouchableOpacity 
+              style={styles.headerAction}
+              onPress={() => fetchPlaylists()}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="sync" size={20} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.headerTitle}>Playlists</Text>
+          <View style={styles.headerStats}>
+            <View style={styles.headerStatItem}>
+              <MaterialIcons name="library-music" size={16} color={Colors.textSecondary} />
+              <Text style={styles.headerStatText}>
+                {playlists.length} {playlists.length === 1 ? 'playlist' : 'playlists'}
+              </Text>
+            </View>
+            {playlists.length > 0 && (
+              <>
+                <View style={styles.headerStatDivider} />
+                <View style={styles.headerStatItem}>
+                  <MaterialIcons name="music-note" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.headerStatText}>
+                    {playlists.reduce((acc, p) => acc + (p.songs?.length || 0), 0)} tracks
+                  </Text>
+                </View>
+              </>
+            )}
+          </View>
+        </View>
       </LinearGradient>
 
       {isLoading ? (
@@ -110,88 +143,151 @@ export default function PlaylistsScreen() {
         </View>
       ) : error ? (
         <View style={styles.errorContainer}>
-          <Ionicons name="alert-circle" size={48} color="#FF6B6B" />
+          <MaterialIcons name="error-outline" size={64} color={Colors.danger} />
+          <Text style={styles.errorTitle}>Oops!</Text>
           <Text style={styles.errorText}>{error}</Text>
-          <Button
-            title="Retry"
-            onPress={() => fetchPlaylists()}
-            variant="primary"
-            size="medium"
+          <TouchableOpacity
             style={styles.retryButton}
-          />
+            onPress={() => fetchPlaylists()}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={Colors.gradients.red as any}
+              style={styles.retryGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              <MaterialIcons name="refresh" size={20} color={Colors.text} />
+              <Text style={styles.retryText}>Try Again</Text>
+            </LinearGradient>
+          </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
-          data={playlists}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={playlists.length > 1 ? styles.row : null}
-          renderItem={({ item }) => (
-            <PlaylistCard
-              playlist={item}
-              onPress={() => handlePlaylistPress(item)}
-            />
-          )}
+        <ScrollView 
+          showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
               refreshing={isRefreshing}
               onRefresh={handleRefresh}
               colors={[Colors.primary]}
+              tintColor={Colors.primary}
             />
           }
-          ListHeaderComponent={
-            playlists.length > 0 ? (
-              <View style={styles.statsContainer}>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>
-                    {playlists.reduce((acc, p) => acc + (p.songs?.length || 0), 0)}
-                  </Text>
-                  <Text style={styles.statLabel}>Total Songs</Text>
+        >
+          {playlists.length > 0 ? (
+            <>
+              {/* Quick Stats Section */}
+              <View style={styles.quickStats}>
+                <LinearGradient
+                  colors={['rgba(29, 185, 84, 0.1)', 'rgba(30, 215, 96, 0.05)']}
+                  style={styles.statCardGradient}
+                >
+                  <View style={styles.statCardContent}>
+                    <MaterialIcons name="queue-music" size={24} color={Colors.primary} />
+                    <View style={styles.statInfo}>
+                      <Text style={styles.statNumber}>
+                        {playlists.reduce((acc, p) => acc + (p.songs?.length || 0), 0)}
+                      </Text>
+                      <Text style={styles.statLabel}>Total tracks</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+                
+                <LinearGradient
+                  colors={['rgba(69, 10, 245, 0.1)', 'rgba(192, 116, 178, 0.05)']}
+                  style={styles.statCardGradient}
+                >
+                  <View style={styles.statCardContent}>
+                    <MaterialIcons name="schedule" size={24} color="#8B5CF6" />
+                    <View style={styles.statInfo}>
+                      <Text style={[styles.statNumber, { color: '#8B5CF6' }]}>
+                        {Math.floor(playlists.reduce((acc, p) => acc + (p.totalDuration || 0), 0) / 60)}
+                      </Text>
+                      <Text style={styles.statLabel}>Minutes</Text>
+                    </View>
+                  </View>
+                </LinearGradient>
+              </View>
+
+              {/* Playlists Grid */}
+              <View style={styles.playlistsSection}>
+                <View style={styles.sectionHeader}>
+                  <Text style={styles.sectionTitle}>Your Collection</Text>
+                  <TouchableOpacity 
+                    style={styles.sortButton}
+                    activeOpacity={0.7}
+                  >
+                    <MaterialIcons name="sort" size={18} color={Colors.textSecondary} />
+                    <Text style={styles.sortButtonText}>Recent</Text>
+                  </TouchableOpacity>
                 </View>
-                <View style={styles.statCard}>
-                  <Text style={styles.statNumber}>
-                    {Math.floor(playlists.reduce((acc, p) => acc + (p.totalDuration || 0), 0) / 60)}
-                  </Text>
-                  <Text style={styles.statLabel}>Minutes</Text>
+                
+                <View style={styles.playlistGrid}>
+                  {playlists.map((playlist) => (
+                    <PlaylistCard
+                      key={playlist.id}
+                      playlist={playlist}
+                      onPress={() => handlePlaylistPress(playlist)}
+                    />
+                  ))}
                 </View>
               </View>
-            ) : null
-          }
-          ListEmptyComponent={
+            </>
+          ) : (
             <View style={styles.emptyContainer}>
-              <Ionicons name="musical-notes-outline" size={64} color={Colors.textSecondary} />
-              <Text style={styles.emptyTitle}>No Playlists Yet</Text>
-              <Text style={styles.emptyText}>Create your first playlist from the Discover tab!</Text>
-              <Button
-                title="Create Playlist"
-                onPress={handleCreatePlaylist}
-                variant="primary"
-                size="large"
-                style={styles.emptyButton}
-              />
-            </View>
-          }
-          ListFooterComponent={
-            playlists.length > 0 ? (
-              <View style={styles.footer}>
-                <Button
-                  title="Create New Playlist"
-                  onPress={handleCreatePlaylist}
-                  variant="primary"
-                  size="large"
-                  style={styles.createButton}
-                />
+              <View style={styles.emptyIconContainer}>
+                <LinearGradient
+                  colors={Colors.gradients.purple as any}
+                  style={styles.emptyIconGradient}
+                >
+                  <MaterialIcons name="library-music" size={48} color={Colors.text} />
+                </LinearGradient>
               </View>
-            ) : null
-          }
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-        />
+              <Text style={styles.emptyTitle}>Start Your Collection</Text>
+              <Text style={styles.emptyText}>
+                Create playlists from your favorite tracks
+                and discover new music
+              </Text>
+              <TouchableOpacity
+                style={styles.emptyButton}
+                onPress={handleCreatePlaylist}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.green as any}
+                  style={styles.emptyButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  <MaterialIcons name="add" size={20} color={Colors.background} />
+                  <Text style={styles.emptyButtonText}>Create First Playlist</Text>
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          )}
+          
+          {/* Spacer for FAB */}
+          <View style={{ height: 100 }} />
+        </ScrollView>
       )}
 
-      <TouchableOpacity style={styles.fab} onPress={handleCreatePlaylist}>
-        <Ionicons name="add" size={28} color={Colors.background} />
-      </TouchableOpacity>
+      {/* Enhanced FAB */}
+      {playlists.length > 0 && (
+        <TouchableOpacity 
+          style={styles.fab} 
+          onPress={handleCreatePlaylist}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={Colors.gradients.green as any}
+            style={styles.fabGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+          >
+            <MaterialIcons name="add" size={28} color={Colors.background} />
+          </LinearGradient>
+        </TouchableOpacity>
+      )}
     </View>
   );
 }
@@ -202,76 +298,140 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   header: {
-    padding: 20,
-    paddingTop: 20,
-    paddingBottom: 30,
+    paddingTop: 60,
+    paddingBottom: 24,
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  headerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+  },
+  headerAction: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 36,
     fontWeight: 'bold',
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: Colors.text,
-    opacity: 0.9,
-  },
-  statsContainer: {
+  headerStats: {
     flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingHorizontal: 16,
-    marginVertical: 20,
-  },
-  statCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 20,
     alignItems: 'center',
-    flex: 0.45,
   },
-  statNumber: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: Colors.primary,
-    marginBottom: 4,
+  headerStatItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
-  statLabel: {
+  headerStatText: {
     fontSize: 14,
     color: Colors.textSecondary,
   },
-  row: {
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
+  headerStatDivider: {
+    width: 1,
+    height: 14,
+    backgroundColor: Colors.border,
+    marginHorizontal: 12,
   },
-  listContent: {
-    paddingBottom: 100,
+  quickStats: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginTop: 16,
+    gap: 12,
   },
-  footer: {
+  statCardGradient: {
+    flex: 1,
+    borderRadius: 16,
     padding: 16,
-    marginTop: 20,
   },
-  createButton: {
-    width: '100%',
+  statCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  statInfo: {
+    flex: 1,
+  },
+  statNumber: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.primary,
+    marginBottom: 2,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  playlistsSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  sortButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+  },
+  sortButtonText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  playlistGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
   },
   fab: {
     position: 'absolute',
-    bottom: 20,
+    bottom: 24,
     right: 20,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.25,
-    shadowRadius: 3.84,
-    elevation: 5,
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  fabGradient: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   loadingContainer: {
     flex: 1,
@@ -288,39 +448,82 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-  },
-  errorText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: '#FF6B6B',
-    textAlign: 'center',
-    marginBottom: 20,
-  },
-  retryButton: {
-    paddingHorizontal: 32,
-  },
-  emptyContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
     padding: 40,
-    marginTop: 60,
   },
-  emptyTitle: {
-    fontSize: 20,
+  errorTitle: {
+    fontSize: 24,
     fontWeight: 'bold',
     color: Colors.text,
     marginTop: 16,
     marginBottom: 8,
   },
-  emptyText: {
+  errorText: {
     fontSize: 16,
     color: Colors.textSecondary,
     textAlign: 'center',
     marginBottom: 24,
   },
+  retryButton: {
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  retryGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    gap: 8,
+  },
+  retryText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingHorizontal: 40,
+    paddingTop: 80,
+    paddingBottom: 40,
+  },
+  emptyIconContainer: {
+    marginBottom: 24,
+  },
+  emptyIconGradient: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  emptyTitle: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 32,
+    lineHeight: 22,
+  },
   emptyButton: {
-    paddingHorizontal: 32,
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  emptyButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    gap: 8,
+  },
+  emptyButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.background,
   },
 });

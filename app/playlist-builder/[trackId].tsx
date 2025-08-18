@@ -629,12 +629,10 @@ const styles = StyleSheet.create({
   headerContent: {
     paddingHorizontal: 20,
     paddingBottom: 24,
+    paddingTop: 60,
   },
   backButton: {
-    position: 'absolute',
-    top: 50,
-    left: 20,
-    zIndex: 10,
+    marginBottom: 16,
   },
   backButtonBlur: {
     width: 40,
@@ -645,7 +643,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerTextContainer: {
-    marginTop: 60,
   },
   headerLabel: {
     fontSize: 12,
