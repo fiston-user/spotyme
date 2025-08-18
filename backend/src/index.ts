@@ -16,6 +16,9 @@ import userRoutes from "./routes/user";
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Trust proxy headers (needed for ngrok and reverse proxies)
+app.set('trust proxy', true);
+
 app.use(helmet());
 app.use(
   cors({

@@ -1,33 +1,85 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   View, 
   Text, 
   FlatList, 
   StyleSheet,
   TouchableOpacity,
-  Alert
+  Alert,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { mockPlaylists, Playlist } from '../../constants/MockData';
+import { Playlist } from '../../constants/MockData';
 import { PlaylistCard } from '../../components/PlaylistCard';
 import { Button } from '../../components/ui/Button';
+import { apiService } from '../../services/api';
 
 export default function PlaylistsScreen() {
   const router = useRouter();
-  const [playlists] = useState<Playlist[]>(mockPlaylists);
+  const [playlists, setPlaylists] = useState<Playlist[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Transform backend playlist data to match our Playlist interface
+  const transformPlaylist = (backendPlaylist: any): Playlist => {
+    return {
+      id: backendPlaylist._id || backendPlaylist.id,
+      name: backendPlaylist.name,
+      description: backendPlaylist.description || '',
+      songs: backendPlaylist.tracks || [],
+      coverArt: backendPlaylist.tracks?.[0]?.albumArt || 'https://picsum.photos/seed/playlist/300/300',
+      createdAt: new Date(backendPlaylist.createdAt),
+      totalDuration: backendPlaylist.totalDuration || 0,
+    };
+  };
+
+  // Fetch playlists from backend
+  const fetchPlaylists = async (showRefresh = false) => {
+    if (showRefresh) {
+      setIsRefreshing(true);
+    } else {
+      setIsLoading(true);
+    }
+    setError(null);
+
+    try {
+      const response = await apiService.getUserPlaylists();
+      
+      if (response.success && response.data) {
+        const transformedPlaylists = response.data.map(transformPlaylist);
+        setPlaylists(transformedPlaylists);
+      } else {
+        setError(response.error || 'Failed to load playlists');
+      }
+    } catch (err) {
+      console.error('Fetch playlists error:', err);
+      setError('Failed to load playlists');
+    } finally {
+      setIsLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+
+  // Load playlists on mount
+  useEffect(() => {
+    fetchPlaylists();
+  }, []);
 
   const handlePlaylistPress = (playlist: Playlist) => {
     router.push(`/playlist/${playlist.id}`);
   };
 
   const handleCreatePlaylist = () => {
-    Alert.alert(
-      'Create Playlist',
-      'Go to the Discover tab to create a new playlist based on songs you love!'
-    );
+    router.push('/(tabs)/');
+  };
+
+  const handleRefresh = () => {
+    fetchPlaylists(true);
   };
 
   return (
@@ -44,47 +96,91 @@ export default function PlaylistsScreen() {
         </Text>
       </LinearGradient>
 
-      <FlatList
-        data={playlists}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        columnWrapperStyle={styles.row}
-        renderItem={({ item }) => (
-          <PlaylistCard
-            playlist={item}
-            onPress={() => handlePlaylistPress(item)}
+      {isLoading ? (
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Loading your playlists...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle" size={48} color="#FF6B6B" />
+          <Text style={styles.errorText}>{error}</Text>
+          <Button
+            title="Retry"
+            onPress={() => fetchPlaylists()}
+            variant="primary"
+            size="medium"
+            style={styles.retryButton}
           />
-        )}
-        ListHeaderComponent={
-          <View style={styles.statsContainer}>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {playlists.reduce((acc, p) => acc + p.songs.length, 0)}
-              </Text>
-              <Text style={styles.statLabel}>Total Songs</Text>
-            </View>
-            <View style={styles.statCard}>
-              <Text style={styles.statNumber}>
-                {Math.floor(playlists.reduce((acc, p) => acc + p.totalDuration, 0) / 60)}
-              </Text>
-              <Text style={styles.statLabel}>Minutes</Text>
-            </View>
-          </View>
-        }
-        ListFooterComponent={
-          <View style={styles.footer}>
-            <Button
-              title="Create New Playlist"
-              onPress={handleCreatePlaylist}
-              variant="primary"
-              size="large"
-              style={styles.createButton}
+        </View>
+      ) : (
+        <FlatList
+          data={playlists}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={playlists.length > 1 ? styles.row : null}
+          renderItem={({ item }) => (
+            <PlaylistCard
+              playlist={item}
+              onPress={() => handlePlaylistPress(item)}
             />
-          </View>
-        }
-        contentContainerStyle={styles.listContent}
-        showsVerticalScrollIndicator={false}
-      />
+          )}
+          refreshControl={
+            <RefreshControl
+              refreshing={isRefreshing}
+              onRefresh={handleRefresh}
+              colors={[Colors.primary]}
+            />
+          }
+          ListHeaderComponent={
+            playlists.length > 0 ? (
+              <View style={styles.statsContainer}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>
+                    {playlists.reduce((acc, p) => acc + (p.songs?.length || 0), 0)}
+                  </Text>
+                  <Text style={styles.statLabel}>Total Songs</Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statNumber}>
+                    {Math.floor(playlists.reduce((acc, p) => acc + (p.totalDuration || 0), 0) / 60)}
+                  </Text>
+                  <Text style={styles.statLabel}>Minutes</Text>
+                </View>
+              </View>
+            ) : null
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Ionicons name="musical-notes-outline" size={64} color={Colors.textSecondary} />
+              <Text style={styles.emptyTitle}>No Playlists Yet</Text>
+              <Text style={styles.emptyText}>Create your first playlist from the Discover tab!</Text>
+              <Button
+                title="Create Playlist"
+                onPress={handleCreatePlaylist}
+                variant="primary"
+                size="large"
+                style={styles.emptyButton}
+              />
+            </View>
+          }
+          ListFooterComponent={
+            playlists.length > 0 ? (
+              <View style={styles.footer}>
+                <Button
+                  title="Create New Playlist"
+                  onPress={handleCreatePlaylist}
+                  variant="primary"
+                  size="large"
+                  style={styles.createButton}
+                />
+              </View>
+            ) : null
+          }
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+        />
+      )}
 
       <TouchableOpacity style={styles.fab} onPress={handleCreatePlaylist}>
         <Ionicons name="add" size={28} color={Colors.background} />
@@ -169,5 +265,55 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: Colors.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  errorText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#FF6B6B',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    paddingHorizontal: 32,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
+    marginTop: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyText: {
+    fontSize: 16,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: 24,
+  },
+  emptyButton: {
+    paddingHorizontal: 32,
   },
 });

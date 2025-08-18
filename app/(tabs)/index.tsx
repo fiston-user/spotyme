@@ -1,35 +1,132 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
   ScrollView, 
   StyleSheet,
-  Alert
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
-import { 
-  mockSongs, 
-  getRecommendedSongs, 
-  Song 
-} from '../../constants/MockData';
+import { Song } from '../../constants/MockData';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { SongCard } from '../../components/SongCard';
 import { RecommendationList } from '../../components/RecommendationList';
 import { Button } from '../../components/ui/Button';
+import { apiService } from '../../services/api';
 
 export default function DiscoverScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [recommendations, setRecommendations] = useState<Song[]>([]);
   const [playlistSongs, setPlaylistSongs] = useState<Song[]>([]);
+  const [searchResults, setSearchResults] = useState<Song[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false);
+  const [isCreatingPlaylist, setIsCreatingPlaylist] = useState(false);
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
 
-  const handleSongSelect = (song: Song) => {
+  // Transform Spotify track data to our Song interface
+  const transformSpotifyTrack = (track: any): Song => {
+    return {
+      id: track.id,
+      title: track.name,
+      artist: track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
+      album: track.album?.name || 'Unknown Album',
+      duration: Math.floor(track.duration_ms / 1000),
+      albumArt: track.album?.images?.[0]?.url || 'https://picsum.photos/seed/spotify/300/300',
+      genre: [],
+      mood: [],
+      energy: 0.5,
+      popularity: track.popularity || 0,
+    };
+  };
+
+  // Search for songs
+  const performSearch = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const response = await apiService.searchTracks(query, 10);
+      if (response.success && response.data?.tracks?.items) {
+        const transformedTracks = response.data.tracks.items.map(transformSpotifyTrack);
+        setSearchResults(transformedTracks);
+      } else {
+        setSearchResults([]);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  }, []);
+
+  // Debounced search
+  useEffect(() => {
+    if (searchTimeout) {
+      clearTimeout(searchTimeout);
+    }
+
+    if (searchQuery.trim()) {
+      const newTimeout = setTimeout(() => {
+        performSearch(searchQuery);
+      }, 500);
+      setSearchTimeout(newTimeout);
+    } else {
+      setSearchResults([]);
+    }
+
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+    };
+  }, [searchQuery]);
+
+  // Get recommendations based on selected song
+  const getRecommendations = async (song: Song) => {
+    setIsLoadingRecommendations(true);
+    try {
+      const response = await fetch(
+        `https://piranha-coherent-usefully.ngrok-free.app/api/spotify/recommendations?seed_tracks=${song.id}&limit=12`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.tracks) {
+          const transformedTracks = data.tracks.map(transformSpotifyTrack);
+          setRecommendations(transformedTracks);
+        }
+      } else {
+        Alert.alert('Error', 'Failed to get recommendations');
+      }
+    } catch (err) {
+      console.error('Recommendations error:', err);
+      Alert.alert('Error', 'Failed to get recommendations');
+    } finally {
+      setIsLoadingRecommendations(false);
+    }
+  };
+
+  const handleSongSelect = async (song: Song) => {
     setSelectedSong(song);
-    const recommended = getRecommendedSongs(song, 8);
-    setRecommendations(recommended);
     setSearchQuery('');
+    setSearchResults([]);
+    await getRecommendations(song);
   };
 
   const handleAddToPlaylist = (song: Song) => {
@@ -41,23 +138,53 @@ export default function DiscoverScreen() {
     }
   };
 
-  const handleCreatePlaylist = () => {
+  const handleCreatePlaylist = async () => {
     if (playlistSongs.length === 0) {
       Alert.alert('No Songs', 'Add some songs to create a playlist');
       return;
     }
-    Alert.alert(
-      'Playlist Created!', 
-      `Your playlist with ${playlistSongs.length} songs has been created`
-    );
-    setPlaylistSongs([]);
-  };
 
-  const filteredSongs = mockSongs.filter(song =>
-    song.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    song.artist.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    song.album.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+    setIsCreatingPlaylist(true);
+    try {
+      const seedTracks = [selectedSong?.id, ...playlistSongs.slice(0, 4).map(s => s.id)].filter(Boolean);
+      
+      const response = await fetch(
+        'https://piranha-coherent-usefully.ngrok-free.app/api/playlists/generate',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            seedTracks,
+            name: `SpotYme Playlist - ${new Date().toLocaleDateString()}`,
+            description: `Created based on ${selectedSong?.title || 'your selections'}`,
+            options: {
+              limit: 20,
+            },
+          }),
+        }
+      );
+
+      if (response.ok) {
+        Alert.alert(
+          'Playlist Created!',
+          `Your playlist has been created and saved to your library`
+        );
+        setPlaylistSongs([]);
+        setSelectedSong(null);
+        setRecommendations([]);
+      } else {
+        Alert.alert('Error', 'Failed to create playlist');
+      }
+    } catch (err) {
+      console.error('Create playlist error:', err);
+      Alert.alert('Error', 'Failed to create playlist');
+    } finally {
+      setIsCreatingPlaylist(false);
+    }
+  };
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
@@ -84,13 +211,20 @@ export default function DiscoverScreen() {
         {searchQuery.length > 0 && (
           <View style={styles.searchResults}>
             <Text style={styles.sectionTitle}>Search Results</Text>
-            {filteredSongs.slice(0, 5).map(song => (
-              <SongCard
-                key={song.id}
-                song={song}
-                onPress={() => handleSongSelect(song)}
-              />
-            ))}
+            {isSearching ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={Colors.primary} />
+                <Text style={styles.loadingText}>Searching Spotify...</Text>
+              </View>
+            ) : (
+              searchResults.slice(0, 5).map(song => (
+                <SongCard
+                  key={song.id}
+                  song={song}
+                  onPress={() => handleSongSelect(song)}
+                />
+              ))
+            )}
           </View>
         )}
 
@@ -104,7 +238,12 @@ export default function DiscoverScreen() {
               />
             </View>
 
-            {recommendations.length > 0 && (
+            {isLoadingRecommendations ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Getting recommendations...</Text>
+              </View>
+            ) : recommendations.length > 0 ? (
               <RecommendationList
                 title="Recommended for You"
                 songs={recommendations}
@@ -112,7 +251,7 @@ export default function DiscoverScreen() {
                 onAddToPlaylist={handleAddToPlaylist}
                 showAddButton={true}
               />
-            )}
+            ) : null}
 
             {playlistSongs.length > 0 && (
               <View style={styles.playlistPreview}>
@@ -120,11 +259,12 @@ export default function DiscoverScreen() {
                   New Playlist ({playlistSongs.length} songs)
                 </Text>
                 <Button
-                  title="Create Playlist"
+                  title={isCreatingPlaylist ? "Creating..." : "Create Playlist"}
                   onPress={handleCreatePlaylist}
                   variant="primary"
                   size="large"
                   style={styles.createButton}
+                  disabled={isCreatingPlaylist}
                 />
               </View>
             )}
@@ -189,6 +329,17 @@ const styles = StyleSheet.create({
   },
   createButton: {
     marginTop: 12,
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+    marginVertical: 20,
+  },
+  loadingText: {
+    marginTop: 10,
+    fontSize: 14,
+    color: Colors.textSecondary,
   },
   emptyState: {
     alignItems: 'center',

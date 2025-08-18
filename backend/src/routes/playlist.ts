@@ -41,6 +41,15 @@ router.get('/my-playlists', async (req, res, next) => {
   }
 });
 
+router.get('/user', async (req, res, next) => {
+  try {
+    const playlists = await playlistService.getUserPlaylists(req.session.userId!);
+    return res.json(playlists);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 router.get('/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
