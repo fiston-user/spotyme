@@ -13,6 +13,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     checkAuthStatus();
+    
+    // Set up an interval to periodically check auth status
+    const interval = setInterval(() => {
+      checkAuthStatus();
+    }, 5000); // Check every 5 seconds
+    
+    return () => clearInterval(interval);
   }, []);
 
   useEffect(() => {
@@ -33,7 +40,15 @@ export default function RootLayout() {
     try {
       const authStatus = await AsyncStorage.getItem('is_authenticated');
       const accessToken = await AsyncStorage.getItem('spotify_access_token');
-      setIsAuthenticated(authStatus === 'true' && !!accessToken);
+      const newAuthStatus = authStatus === 'true' && !!accessToken;
+      
+      // Only update if status changed to avoid unnecessary re-renders
+      setIsAuthenticated(prev => {
+        if (prev !== newAuthStatus) {
+          return newAuthStatus;
+        }
+        return prev;
+      });
     } catch (error) {
       console.error('Error checking auth status:', error);
       setIsAuthenticated(false);

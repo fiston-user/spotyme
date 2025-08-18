@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
+import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../constants/Colors";
 
@@ -25,6 +26,50 @@ const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 export default function LoginScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+
+  useEffect(() => {
+    // Handle deep link when app returns from browser
+    const handleDeepLink = (url: string) => {
+      if (url.includes("spotyme://callback")) {
+        const urlObj = new URL(url);
+        const accessToken = urlObj.searchParams.get("accessToken");
+        const refreshToken = urlObj.searchParams.get("refreshToken");
+
+        if (accessToken && refreshToken) {
+          handleTokens(accessToken, refreshToken);
+        }
+      }
+    };
+
+    // Listen for deep links
+    const subscription = Linking.addEventListener("url", (event) => {
+      handleDeepLink(event.url);
+    });
+
+    // Check if app was opened with a deep link
+    Linking.getInitialURL().then((url) => {
+      if (url) {
+        handleDeepLink(url);
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
+
+  const handleTokens = async (accessToken: string, refreshToken: string) => {
+    try {
+      await AsyncStorage.setItem("spotify_access_token", accessToken);
+      await AsyncStorage.setItem("spotify_refresh_token", refreshToken);
+      await AsyncStorage.setItem("is_authenticated", "true");
+      
+      // Navigate to main app
+      router.replace("/(tabs)");
+    } catch (error) {
+      console.error("Error storing tokens:", error);
+    }
+  };
 
   const handleSpotifyLogin = async () => {
     try {
@@ -41,8 +86,14 @@ export default function LoginScreen() {
       // Open Spotify auth in browser
       const result = await WebBrowser.openAuthSessionAsync(
         data.authUrl,
-        "spotyme://callback"
+        "spotyme://callback",
+        {
+          showInRecents: true,
+          createTask: false,
+        }
       );
+
+      console.log("Auth result:", result);
 
       if (result.type === "success" && result.url) {
         // Parse the callback URL to extract tokens
@@ -51,22 +102,13 @@ export default function LoginScreen() {
         const refreshToken = url.searchParams.get("refreshToken");
 
         if (accessToken && refreshToken) {
-          // Store tokens
-          await AsyncStorage.setItem(
-            "spotify_access_token",
-            accessToken
-          );
-          await AsyncStorage.setItem(
-            "spotify_refresh_token",
-            refreshToken
-          );
-          await AsyncStorage.setItem("is_authenticated", "true");
-
-          // Navigate to main app
-          router.replace("/(tabs)");
+          // Use the shared handler
+          await handleTokens(accessToken, refreshToken);
         } else {
           throw new Error("Failed to get tokens from callback");
         }
+      } else if (result.type === "dismiss") {
+        console.log("User dismissed the auth flow");
       }
     } catch (error) {
       console.error("Login error:", error);

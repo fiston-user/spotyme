@@ -48,8 +48,60 @@ router.get('/callback', async (req, res) => {
       `displayName=${encodeURIComponent(user.displayName || '')}&` +
       `imageUrl=${encodeURIComponent(user.imageUrl || '')}`;
 
-    // Redirect back to the app
-    return res.redirect(callbackUrl);
+    // Try to redirect to the app
+    // If the redirect doesn't work, show a success page with a manual redirect link
+    return res.send(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Login Successful</title>
+          <meta http-equiv="refresh" content="0;url=${callbackUrl}">
+          <style>
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+              background: linear-gradient(135deg, #1DB954 0%, #191414 100%);
+              color: white;
+              display: flex;
+              flex-direction: column;
+              align-items: center;
+              justify-content: center;
+              height: 100vh;
+              margin: 0;
+              padding: 20px;
+              text-align: center;
+            }
+            h1 { margin-bottom: 20px; }
+            p { margin-bottom: 30px; opacity: 0.9; }
+            a {
+              background: #1DB954;
+              color: white;
+              padding: 12px 24px;
+              border-radius: 24px;
+              text-decoration: none;
+              font-weight: 600;
+              display: inline-block;
+            }
+            .success-icon {
+              font-size: 48px;
+              margin-bottom: 20px;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="success-icon">✓</div>
+          <h1>Login Successful!</h1>
+          <p>You should be redirected to SpotYme automatically.</p>
+          <a href="${callbackUrl}">Open SpotYme</a>
+          <script>
+            // Try multiple redirect methods
+            window.location.href = "${callbackUrl}";
+            setTimeout(() => {
+              window.location.replace("${callbackUrl}");
+            }, 100);
+          </script>
+        </body>
+      </html>
+    `);
   } catch (error) {
     console.error('Callback error:', error);
     return res.status(500).json({ error: 'Failed to authenticate' });

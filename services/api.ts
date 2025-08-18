@@ -23,12 +23,12 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        // Handle token expiration
+        // Don't try to refresh if we're already handling a 401
         if (response.status === 401) {
-          const refreshed = await this.refreshToken();
-          if (!refreshed) {
-            throw new Error("Session expired. Please login again.");
-          }
+          return {
+            success: false,
+            error: "Session expired. Please login again.",
+          };
         }
 
         return {
@@ -53,15 +53,15 @@ class ApiService {
     }
   }
 
-  private async refreshToken(): Promise<boolean> {
+  async refreshToken(): Promise<boolean> {
     try {
-      const refreshToken = await AsyncStorage.getItem("spotify_refresh_token");
-      if (!refreshToken) return false;
+      const refreshTokenValue = await AsyncStorage.getItem("spotify_refresh_token");
+      if (!refreshTokenValue) return false;
 
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken }),
+        body: JSON.stringify({ refreshToken: refreshTokenValue }),
       });
 
       if (response.ok) {

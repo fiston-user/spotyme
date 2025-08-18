@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
 import { apiService } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -51,14 +51,35 @@ export default function ProfileScreen() {
     try {
       setError(null);
       const response = await apiService.getUserProfile();
-      
+
       if (response.success && response.data) {
-        setProfile(response.data);
+        setProfile(response.data as UserProfile);
       } else {
+        // Check if session expired
+        if (
+          response.error?.includes("Session expired") ||
+          response.error?.includes("Unauthorized")
+        ) {
+          // Clear tokens and redirect to login
+          await AsyncStorage.clear();
+          router.replace("/login");
+          return;
+        }
         throw new Error(response.error || "Failed to load profile");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      // Check if it's a session error
+      const errorMessage =
+        error instanceof Error ? error.message : "Unknown error";
+      if (
+        errorMessage.includes("Session expired") ||
+        errorMessage.includes("Unauthorized")
+      ) {
+        await AsyncStorage.clear();
+        router.replace("/login");
+        return;
+      }
       setError("Unable to load profile. Please try again.");
     } finally {
       setIsLoading(false);
@@ -69,18 +90,21 @@ export default function ProfileScreen() {
   const loadStats = async () => {
     try {
       const response = await apiService.getUserPlaylists();
-      
+
       if (response.success && response.data) {
-        const playlists = response.data;
-        const totalTracks = playlists.reduce(
-          (sum: number, playlist: any) => sum + (playlist.tracks?.length || 0),
-          0
-        );
-        
-        setStats({
-          totalPlaylists: playlists.length || 0,
-          totalTracks: totalTracks,
-        });
+        const playlists = response.data as any[];
+        if (Array.isArray(playlists)) {
+          const totalTracks = playlists.reduce(
+            (sum: number, playlist: any) =>
+              sum + (playlist.tracks?.length || 0),
+            0
+          );
+
+          setStats({
+            totalPlaylists: playlists.length || 0,
+            totalTracks: totalTracks,
+          });
+        }
       }
     } catch (error) {
       console.error("Error fetching stats:", error);
@@ -137,7 +161,7 @@ export default function ProfileScreen() {
   if (error && !profile) {
     return (
       <View style={styles.errorContainer}>
-        <Ionicons name="alert-circle" size={48} color={Colors.error} />
+        <Ionicons name="alert-circle" size={48} color={Colors.danger} />
         <Text style={styles.errorText}>{error}</Text>
         <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
           <Text style={styles.retryButtonText}>Retry</Text>
@@ -167,21 +191,18 @@ export default function ProfileScreen() {
       >
         <View style={styles.profileSection}>
           {profile?.imageUrl ? (
-            <Image
-              source={{ uri: profile.imageUrl }}
-              style={styles.avatar}
-            />
+            <Image source={{ uri: profile.imageUrl }} style={styles.avatar} />
           ) : (
             <View style={styles.avatarPlaceholder}>
               <Ionicons name="person" size={50} color={Colors.textSecondary} />
             </View>
           )}
-          
+
           <Text style={styles.name}>
             {profile?.displayName || "Spotify User"}
           </Text>
           <Text style={styles.email}>{profile?.email || ""}</Text>
-          
+
           {profile?.createdAt && (
             <Text style={styles.joinDate}>
               Member since {formatDate(profile.createdAt)}
@@ -192,31 +213,31 @@ export default function ProfileScreen() {
 
       <View style={styles.content}>
         {/* Stats Section */}
-        <View style={styles.statsContainer}>
+        {/* <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Ionicons name="list" size={24} color={Colors.primary} />
             <Text style={styles.statNumber}>{stats.totalPlaylists}</Text>
             <Text style={styles.statLabel}>Playlists</Text>
           </View>
-          
+
           <View style={styles.statCard}>
             <Ionicons name="musical-notes" size={24} color={Colors.primary} />
             <Text style={styles.statNumber}>{stats.totalTracks}</Text>
             <Text style={styles.statLabel}>Tracks</Text>
           </View>
-          
+
           <View style={styles.statCard}>
             <Ionicons name="time" size={24} color={Colors.primary} />
             <Text style={styles.statNumber}>0</Text>
             <Text style={styles.statLabel}>Hours</Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Quick Actions</Text>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => router.push("/(tabs)/")}
           >
@@ -229,10 +250,14 @@ export default function ProfileScreen() {
                 Generate a new AI-powered playlist
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={Colors.textSecondary}
+            />
           </TouchableOpacity>
-          
-          <TouchableOpacity 
+
+          <TouchableOpacity
             style={styles.actionCard}
             onPress={() => router.push("/(tabs)/explore")}
           >
@@ -245,30 +270,54 @@ export default function ProfileScreen() {
                 Explore new tracks and artists
               </Text>
             </View>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={Colors.textSecondary}
+            />
           </TouchableOpacity>
         </View>
 
         {/* Settings Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Settings</Text>
-          
+
           <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="notifications-outline" size={24} color={Colors.text} />
+            <Ionicons
+              name="notifications-outline"
+              size={24}
+              color={Colors.text}
+            />
             <Text style={styles.menuText}>Notifications</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={Colors.textSecondary}
+            />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.menuItem}>
             <Ionicons name="shield-outline" size={24} color={Colors.text} />
             <Text style={styles.menuText}>Privacy</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={Colors.textSecondary}
+            />
           </TouchableOpacity>
-          
+
           <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="help-circle-outline" size={24} color={Colors.text} />
+            <Ionicons
+              name="help-circle-outline"
+              size={24}
+              color={Colors.text}
+            />
             <Text style={styles.menuText}>Help & Support</Text>
-            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+            <Ionicons
+              name="chevron-forward"
+              size={20}
+              color={Colors.textSecondary}
+            />
           </TouchableOpacity>
         </View>
 
@@ -277,7 +326,7 @@ export default function ProfileScreen() {
           <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
           <Text style={styles.logoutText}>Disconnect Spotify</Text>
         </TouchableOpacity>
-        
+
         <View style={styles.footer}>
           <Text style={styles.footerText}>SpotYme v1.0.0</Text>
           <Text style={styles.footerSubtext}>
@@ -495,8 +544,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: Colors.textSecondary,
     opacity: 0.6,
-  },
-  error: {
-    color: "#FF6B6B",
   },
 });
