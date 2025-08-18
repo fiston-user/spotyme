@@ -22,7 +22,9 @@ class PlaylistService {
       const recommendations = await spotifyApiService.getRecommendations(
         accessToken,
         seedTracks.join(","),
-        options.limit || 20
+        options.limit || 20,
+        options.targetEnergy,
+        options.targetValence
       );
 
       // Get audio features for seed tracks to understand user preference

@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
@@ -18,6 +19,7 @@ import { Button } from '../../components/ui/Button';
 import { apiService } from '../../services/api';
 
 export default function DiscoverScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSong, setSelectedSong] = useState<Song | null>(null);
   const [recommendations, setRecommendations] = useState<Song[]>([]);
@@ -235,6 +237,8 @@ export default function DiscoverScreen() {
               <SongCard
                 song={selectedSong}
                 onPress={() => {}}
+                showPlaylistButton={true}
+                onPlaylistPress={() => router.push(`/playlist-builder/${selectedSong.id}`)}
               />
             </View>
 

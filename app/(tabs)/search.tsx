@@ -8,6 +8,7 @@ import {
   Alert,
   ActivityIndicator
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Song } from '../../constants/MockData';
@@ -17,6 +18,7 @@ import { Card } from '../../components/ui/Card';
 import { apiService } from '../../services/api';
 
 export default function SearchScreen() {
+  const router = useRouter();
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -99,6 +101,10 @@ export default function SearchScreen() {
     );
   };
 
+  const handleCreatePlaylist = (song: Song) => {
+    router.push(`/playlist-builder/${song.id}`);
+  };
+
   return (
     <View style={styles.container}>
       <SearchBar
@@ -127,6 +133,8 @@ export default function SearchScreen() {
             <SongCard
               song={item}
               onPress={() => handleSongPress(item)}
+              showPlaylistButton={true}
+              onPlaylistPress={() => handleCreatePlaylist(item)}
               showAddButton={false}
             />
           )}

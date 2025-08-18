@@ -15,13 +15,17 @@ interface SongCardProps {
   onPress: () => void;
   showAddButton?: boolean;
   onAddPress?: () => void;
+  showPlaylistButton?: boolean;
+  onPlaylistPress?: () => void;
 }
 
 export const SongCard: React.FC<SongCardProps> = ({ 
   song, 
   onPress, 
   showAddButton = false,
-  onAddPress 
+  onAddPress,
+  showPlaylistButton = false,
+  onPlaylistPress 
 }) => {
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -48,11 +52,18 @@ export const SongCard: React.FC<SongCardProps> = ({
           </View>
         </View>
       </View>
-      {showAddButton && (
-        <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
-          <Ionicons name="add" size={24} color={Colors.background} />
-        </TouchableOpacity>
-      )}
+      <View style={styles.actions}>
+        {showPlaylistButton && (
+          <TouchableOpacity style={styles.playlistButton} onPress={onPlaylistPress}>
+            <Ionicons name="list" size={20} color={Colors.primary} />
+          </TouchableOpacity>
+        )}
+        {showAddButton && (
+          <TouchableOpacity style={styles.addButton} onPress={onAddPress}>
+            <Ionicons name="add" size={24} color={Colors.background} />
+          </TouchableOpacity>
+        )}
+      </View>
     </TouchableOpacity>
   );
 };
@@ -110,6 +121,21 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: Colors.textSecondary,
   },
+  actions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  playlistButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.primary,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
   addButton: {
     width: 36,
     height: 36,
@@ -117,6 +143,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginLeft: 12,
+    marginLeft: 8,
   },
 });

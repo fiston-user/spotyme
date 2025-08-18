@@ -197,6 +197,54 @@ class ApiService {
     }
   }
 
+  async exportPlaylistToSpotify(playlistId: string) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/playlists/${playlistId}/export-to-spotify`,
+        {
+          method: "POST",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to export playlist to Spotify",
+      };
+    }
+  }
+
+  async getPlaylist(playlistId: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}`, {
+        method: "GET",
+        headers: await this.getAuthHeaders(),
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch playlist",
+      };
+    }
+  }
+
+  async deletePlaylist(playlistId: string) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}`, {
+        method: "DELETE",
+        headers: await this.getAuthHeaders(),
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to delete playlist",
+      };
+    }
+  }
+
   // Auth Endpoints
   async logout() {
     try {

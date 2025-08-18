@@ -1,4 +1,5 @@
 import SpotifyWebApi from "spotify-web-api-node";
+import { aiRecommendationService } from "./aiRecommendations";
 
 class SpotifyApiService {
   private createApiInstance(accessToken: string): SpotifyWebApi {
@@ -40,8 +41,21 @@ class SpotifyApiService {
       const api = this.createApiInstance(accessToken);
       const data = await api.getAudioFeaturesForTrack(trackId);
       return data.body;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get audio features error:", error);
+      if (error.statusCode === 404 || error.statusCode === 403) {
+        // Return default values if audio features not available or forbidden
+        console.log("Audio features not available, using defaults");
+        return {
+          energy: 0.5,
+          valence: 0.5,
+          danceability: 0.5,
+          acousticness: 0.5,
+          instrumentalness: 0.5,
+          liveness: 0.5,
+          speechiness: 0.5,
+        };
+      }
       throw new Error("Failed to get audio features");
     }
   }
@@ -49,21 +63,58 @@ class SpotifyApiService {
   async getRecommendations(
     accessToken: string,
     seedTracks: string,
-    limit: number
+    limit: number,
+    targetEnergy?: number,
+    targetValence?: number
   ): Promise<any> {
     try {
       const api = this.createApiInstance(accessToken);
-      const trackIds = seedTracks.split(",").slice(0, 5); // Spotify allows max 5 seeds
+      const trackIds = seedTracks.split(",").filter(id => id.trim()).slice(0, 5);
+      
+      // Clean track IDs - remove any spotify:track: prefix
+      const cleanTrackIds = trackIds.map(id => id.replace('spotify:track:', ''));
 
-      const data = await api.getRecommendations({
-        seed_tracks: trackIds,
+      const params: any = {
+        seed_tracks: cleanTrackIds,
         limit,
-      });
+      };
 
+      // Add optional target parameters
+      if (targetEnergy !== undefined) {
+        params.target_energy = targetEnergy;
+      }
+      if (targetValence !== undefined) {
+        params.target_valence = targetValence;
+      }
+
+      const data = await api.getRecommendations(params);
       return data.body;
-    } catch (error) {
-      console.error("Get recommendations error:", error);
-      throw new Error("Failed to get recommendations");
+    } catch (error: any) {
+      console.error("Spotify recommendations failed, switching to AI-based recommendations");
+      
+      // Get the seed track details first
+      try {
+        const trackId = seedTracks.split(",")[0].replace('spotify:track:', '');
+        const seedTrack = await this.getTrack(accessToken, trackId);
+        
+        // Use AI-based recommendations as fallback
+        const aiRecommendations = await aiRecommendationService.getAIRecommendations(
+          accessToken,
+          seedTrack,
+          targetEnergy,
+          targetValence,
+          limit
+        );
+        
+        return aiRecommendations;
+      } catch (aiError) {
+        console.error("AI recommendations also failed:", aiError);
+        // Return empty recommendations instead of failing completely
+        return {
+          tracks: [],
+          seeds: []
+        };
+      }
     }
   }
 

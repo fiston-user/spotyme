@@ -87,8 +87,13 @@ export default function RootLayout() {
         <Stack.Screen 
           name="playlist/[id]" 
           options={{ 
-            title: 'Playlist',
-            presentation: 'modal',
+            headerShown: false
+          }} 
+        />
+        <Stack.Screen 
+          name="playlist-builder/[trackId]" 
+          options={{ 
+            headerShown: false
           }} 
         />
       </Stack>
