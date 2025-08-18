@@ -7,10 +7,13 @@ import {
   ActivityIndicator,
   Alert,
   TouchableOpacity,
+  Image,
+  Dimensions,
+  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons, MaterialIcons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
 import { Song } from '../../constants/MockData';
 import { SongCard } from '../../components/SongCard';
@@ -18,6 +21,15 @@ import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import Slider from '@react-native-community/slider';
 import { apiService } from '../../services/api';
+import { BlurView } from 'expo-blur';
+
+const { width: screenWidth } = Dimensions.get('window');
+
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds % 60;
+  return `${mins}:${secs.toString().padStart(2, '0')}`;
+};
 
 export default function PlaylistBuilderScreen() {
   const { trackId } = useLocalSearchParams();
@@ -32,6 +44,7 @@ export default function PlaylistBuilderScreen() {
   
   // Customization parameters
   const [playlistName, setPlaylistName] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
   const [targetEnergy, setTargetEnergy] = useState(0.5);
   const [targetValence, setTargetValence] = useState(0.5);
   const [trackCount, setTrackCount] = useState(20);
@@ -242,185 +255,355 @@ export default function PlaylistBuilderScreen() {
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <LinearGradient
-        colors={Colors.gradients.purple as any}
-        style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
-        <TouchableOpacity 
-          style={styles.backButton}
-          onPress={() => router.back()}
-        >
-          <Ionicons name="arrow-back" size={24} color={Colors.text} />
-        </TouchableOpacity>
-        
-        <Text style={styles.headerTitle}>Create Playlist</Text>
-        <Text style={styles.headerSubtitle}>
-          Customize your perfect mix
-        </Text>
-      </LinearGradient>
-
-      {seedTrack && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Based on</Text>
-          <SongCard song={seedTrack} onPress={() => {}} />
-          
-          {audioFeatures && (
-            <Card style={styles.featuresCard}>
-              <Text style={styles.featuresTitle}>Track Characteristics</Text>
-              <View style={styles.featureRow}>
-                <Text style={styles.featureLabel}>Energy</Text>
-                <View style={styles.featureBar}>
-                  <View 
-                    style={[
-                      styles.featureFill, 
-                      { width: `${audioFeatures.energy * 100}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.featureValue}>
-                  {Math.round(audioFeatures.energy * 100)}%
-                </Text>
-              </View>
-              <View style={styles.featureRow}>
-                <Text style={styles.featureLabel}>Mood</Text>
-                <View style={styles.featureBar}>
-                  <View 
-                    style={[
-                      styles.featureFill, 
-                      { width: `${audioFeatures.valence * 100}%` }
-                    ]} 
-                  />
-                </View>
-                <Text style={styles.featureValue}>
-                  {Math.round(audioFeatures.valence * 100)}%
-                </Text>
-              </View>
-            </Card>
+    <View style={styles.container}>
+      <ScrollView showsVerticalScrollIndicator={false} bounces={true}>
+        {/* Enhanced Header with Album Art Background */}
+        <View style={styles.headerContainer}>
+          {seedTrack && (
+            <Image 
+              source={{ uri: seedTrack.albumArt }} 
+              style={styles.headerBackgroundImage}
+              blurRadius={20}
+            />
           )}
-        </View>
-      )}
-
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Customize Your Playlist</Text>
-        
-        <Card style={styles.customizationCard}>
-          <View style={styles.sliderContainer}>
-            <Text style={styles.sliderLabel}>Energy Level</Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={1}
-              value={targetEnergy}
-              onValueChange={setTargetEnergy}
-              minimumTrackTintColor={Colors.primary}
-              maximumTrackTintColor={Colors.border}
-              thumbTintColor={Colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>Chill</Text>
-              <Text style={styles.sliderLabelText}>Energetic</Text>
-            </View>
-          </View>
-
-          <View style={styles.sliderContainer}>
-            <Text style={styles.sliderLabel}>Mood</Text>
-            <Slider
-              style={styles.slider}
-              minimumValue={0}
-              maximumValue={1}
-              value={targetValence}
-              onValueChange={setTargetValence}
-              minimumTrackTintColor={Colors.primary}
-              maximumTrackTintColor={Colors.border}
-              thumbTintColor={Colors.primary}
-            />
-            <View style={styles.sliderLabels}>
-              <Text style={styles.sliderLabelText}>Melancholic</Text>
-              <Text style={styles.sliderLabelText}>Happy</Text>
-            </View>
-          </View>
-
-          <Button
-            title={isGenerating ? 'Generating...' : 'Regenerate Recommendations'}
-            onPress={generateRecommendations}
-            variant="secondary"
-            size="medium"
-            disabled={isGenerating}
-            style={styles.regenerateButton}
-          />
-        </Card>
-      </View>
-
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>
-            Recommended Tracks ({selectedTracks.length} selected)
-          </Text>
-          <TouchableOpacity
-            onPress={() => {
-              if (selectedTracks.length === recommendations.length) {
-                setSelectedTracks([]);
-              } else {
-                setSelectedTracks(recommendations);
-              }
-            }}
+          <LinearGradient
+            colors={['rgba(18, 18, 18, 0.3)', 'rgba(18, 18, 18, 0.95)', Colors.background]}
+            style={styles.headerGradient}
+            locations={[0, 0.6, 1]}
           >
-            <Text style={styles.selectAllText}>
-              {selectedTracks.length === recommendations.length ? 'Deselect All' : 'Select All'}
-            </Text>
+            <View style={styles.headerContent}>
+              <TouchableOpacity 
+                style={styles.backButton}
+                onPress={() => router.back()}
+                activeOpacity={0.7}
+              >
+                <BlurView intensity={80} style={styles.backButtonBlur}>
+                  <Ionicons name="arrow-back" size={22} color={Colors.text} />
+                </BlurView>
+              </TouchableOpacity>
+              
+              <View style={styles.headerTextContainer}>
+                <Text style={styles.headerLabel}>CREATING PLAYLIST</Text>
+                {isEditingName ? (
+                  <TextInput
+                    style={styles.playlistNameInput}
+                    value={playlistName}
+                    onChangeText={setPlaylistName}
+                    onBlur={() => setIsEditingName(false)}
+                    autoFocus
+                    placeholder="Enter playlist name"
+                    placeholderTextColor={Colors.textTertiary}
+                    returnKeyType="done"
+                  />
+                ) : (
+                  <TouchableOpacity onPress={() => setIsEditingName(true)}>
+                    <View style={styles.playlistNameContainer}>
+                      <Text style={styles.playlistName} numberOfLines={1}>
+                        {playlistName || 'Tap to name your playlist'}
+                      </Text>
+                      <MaterialIcons name="edit" size={18} color={Colors.textSecondary} style={styles.editIcon} />
+                    </View>
+                  </TouchableOpacity>
+                )}
+              </View>
+            </View>
+          </LinearGradient>
+        </View>
+
+        {/* Seed Track Section with Better Design */}
+        {seedTrack && (
+          <View style={styles.seedSection}>
+            <View style={styles.sectionHeaderRow}>
+              <MaterialIcons name="music-note" size={20} color={Colors.primary} />
+              <Text style={styles.sectionTitle}>Building playlist from</Text>
+            </View>
+            
+            <View style={styles.seedTrackCard}>
+              <Image source={{ uri: seedTrack.albumArt }} style={styles.seedAlbumArt} />
+              <View style={styles.seedTrackInfo}>
+                <Text style={styles.seedTrackTitle} numberOfLines={1}>{seedTrack.title}</Text>
+                <Text style={styles.seedTrackArtist} numberOfLines={1}>
+                  {seedTrack.artist} • {seedTrack.album}
+                </Text>
+                
+                {audioFeatures && (
+                  <View style={styles.miniFeatures}>
+                    <View style={styles.miniFeature}>
+                      <View style={styles.miniFeatureBar}>
+                        <View 
+                          style={[
+                            styles.miniFeatureFill,
+                            { width: `${audioFeatures.energy * 100}%` }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.miniFeatureLabel}>Energy</Text>
+                    </View>
+                    <View style={styles.miniFeature}>
+                      <View style={styles.miniFeatureBar}>
+                        <View 
+                          style={[
+                            styles.miniFeatureFill,
+                            { width: `${audioFeatures.valence * 100}%` }
+                          ]} 
+                        />
+                      </View>
+                      <Text style={styles.miniFeatureLabel}>Mood</Text>
+                    </View>
+                  </View>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+
+        {/* Enhanced Customization Section */}
+        <View style={styles.customizationSection}>
+          <View style={styles.sectionHeaderRow}>
+            <MaterialIcons name="tune" size={20} color={Colors.primary} />
+            <Text style={styles.sectionTitle}>Fine-tune your mix</Text>
+          </View>
+          
+          <View style={styles.customizationCards}>
+            {/* Energy Card */}
+            <View style={styles.parameterCard}>
+              <LinearGradient
+                colors={['rgba(255, 107, 0, 0.1)', 'rgba(255, 165, 0, 0.05)']}
+                style={styles.parameterGradient}
+              >
+                <View style={styles.parameterHeader}>
+                  <MaterialIcons name="flash-on" size={18} color="#FFA500" />
+                  <Text style={styles.parameterTitle}>Energy</Text>
+                  <Text style={styles.parameterValue}>
+                    {Math.round(targetEnergy * 100)}%
+                  </Text>
+                </View>
+                <Slider
+                  style={styles.parameterSlider}
+                  minimumValue={0}
+                  maximumValue={1}
+                  value={targetEnergy}
+                  onValueChange={setTargetEnergy}
+                  minimumTrackTintColor="#FFA500"
+                  maximumTrackTintColor={Colors.border}
+                  thumbTintColor="#FFA500"
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={styles.sliderLabelText}>Relaxed</Text>
+                  <Text style={styles.sliderLabelText}>Energetic</Text>
+                </View>
+              </LinearGradient>
+            </View>
+
+            {/* Mood Card */}
+            <View style={styles.parameterCard}>
+              <LinearGradient
+                colors={['rgba(29, 185, 84, 0.1)', 'rgba(30, 215, 96, 0.05)']}
+                style={styles.parameterGradient}
+              >
+                <View style={styles.parameterHeader}>
+                  <MaterialIcons name="mood" size={18} color={Colors.primary} />
+                  <Text style={styles.parameterTitle}>Mood</Text>
+                  <Text style={styles.parameterValue}>
+                    {Math.round(targetValence * 100)}%
+                  </Text>
+                </View>
+                <Slider
+                  style={styles.parameterSlider}
+                  minimumValue={0}
+                  maximumValue={1}
+                  value={targetValence}
+                  onValueChange={setTargetValence}
+                  minimumTrackTintColor={Colors.primary}
+                  maximumTrackTintColor={Colors.border}
+                  thumbTintColor={Colors.primary}
+                />
+                <View style={styles.sliderLabels}>
+                  <Text style={styles.sliderLabelText}>Melancholic</Text>
+                  <Text style={styles.sliderLabelText}>Happy</Text>
+                </View>
+              </LinearGradient>
+            </View>
+
+            {/* Track Count Card */}
+            <View style={styles.trackCountCard}>
+              <View style={styles.trackCountHeader}>
+                <MaterialIcons name="queue-music" size={18} color={Colors.textSecondary} />
+                <Text style={styles.trackCountLabel}>Playlist Size</Text>
+              </View>
+              <View style={styles.trackCountOptions}>
+                {[10, 20, 30, 50].map((count) => (
+                  <TouchableOpacity
+                    key={count}
+                    style={[
+                      styles.trackCountOption,
+                      trackCount === count && styles.trackCountOptionActive
+                    ]}
+                    onPress={() => setTrackCount(count)}
+                  >
+                    <Text style={[
+                      styles.trackCountText,
+                      trackCount === count && styles.trackCountTextActive
+                    ]}>
+                      {count}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={styles.regenerateButton}
+            onPress={generateRecommendations}
+            disabled={isGenerating}
+            activeOpacity={0.7}
+          >
+            <LinearGradient
+              colors={isGenerating ? [Colors.surface, Colors.surface] : Colors.gradients.green as any}
+              style={styles.regenerateGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {isGenerating ? (
+                <ActivityIndicator size="small" color={Colors.text} />
+              ) : (
+                <>
+                  <MaterialIcons name="refresh" size={20} color={Colors.text} />
+                  <Text style={styles.regenerateText}>Generate New Mix</Text>
+                </>
+              )}
+            </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {isGenerating ? (
-          <View style={styles.generatingContainer}>
-            <ActivityIndicator size="small" color={Colors.primary} />
-            <Text style={styles.generatingText}>Finding perfect matches...</Text>
+        {/* Enhanced Recommendations Section */}
+        <View style={styles.recommendationsSection}>
+          <View style={styles.recommendationsHeader}>
+            <View style={styles.sectionHeaderRow}>
+              <MaterialIcons name="library-music" size={20} color={Colors.primary} />
+              <Text style={styles.sectionTitle}>Your Mix</Text>
+            </View>
+            <View style={styles.selectionInfo}>
+              <Text style={styles.selectedCount}>
+                {selectedTracks.length} of {recommendations.length} tracks
+              </Text>
+              <TouchableOpacity
+                style={styles.selectAllButton}
+                onPress={() => {
+                  if (selectedTracks.length === recommendations.length) {
+                    setSelectedTracks([]);
+                  } else {
+                    setSelectedTracks(recommendations);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.selectAllText}>
+                  {selectedTracks.length === recommendations.length ? 'Clear' : 'Select All'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
-        ) : (
-          recommendations.map(track => (
-            <TouchableOpacity
-              key={track.id}
-              onPress={() => toggleTrackSelection(track)}
-              style={styles.trackContainer}
-            >
-              <View style={styles.trackRow}>
-                <View style={styles.checkbox}>
-                  {selectedTracks.some(t => t.id === track.id) && (
-                    <Ionicons name="checkmark" size={16} color={Colors.primary} />
-                  )}
+
+          {isGenerating ? (
+            <View style={styles.generatingContainer}>
+              <ActivityIndicator size="large" color={Colors.primary} />
+              <Text style={styles.generatingText}>Discovering perfect matches...</Text>
+              <Text style={styles.generatingSubtext}>This won't take long</Text>
+            </View>
+          ) : recommendations.length === 0 ? (
+            <View style={styles.emptyState}>
+              <MaterialIcons name="music-off" size={48} color={Colors.textTertiary} />
+              <Text style={styles.emptyStateText}>No recommendations yet</Text>
+              <Text style={styles.emptyStateSubtext}>Adjust the parameters and generate a mix</Text>
+            </View>
+          ) : (
+            <View style={styles.trackList}>
+              {recommendations.map((track, index) => (
+                <TouchableOpacity
+                  key={track.id}
+                  onPress={() => toggleTrackSelection(track)}
+                  style={[
+                    styles.trackItem,
+                    selectedTracks.some(t => t.id === track.id) && styles.trackItemSelected
+                  ]}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.trackItemContent}>
+                    <Text style={styles.trackNumber}>{index + 1}</Text>
+                    <Image source={{ uri: track.albumArt }} style={styles.trackAlbumArt} />
+                    <View style={styles.trackInfo}>
+                      <Text style={styles.trackTitle} numberOfLines={1}>{track.title}</Text>
+                      <Text style={styles.trackArtist} numberOfLines={1}>
+                        {track.artist} • {formatDuration(track.duration)}
+                      </Text>
+                    </View>
+                    <View style={[
+                      styles.trackCheckbox,
+                      selectedTracks.some(t => t.id === track.id) && styles.trackCheckboxSelected
+                    ]}>
+                      {selectedTracks.some(t => t.id === track.id) && (
+                        <Ionicons name="checkmark" size={16} color={Colors.background} />
+                      )}
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {/* Spacer for fixed footer */}
+        <View style={{ height: 120 }} />
+      </ScrollView>
+
+      {/* Fixed Footer with Better Design */}
+      {selectedTracks.length > 0 && (
+        <View style={styles.fixedFooter}>
+          <BlurView intensity={95} style={styles.footerBlur}>
+            <View style={styles.footerContent}>
+              <View style={styles.footerStats}>
+                <View style={styles.statItem}>
+                  <MaterialIcons name="queue-music" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.statText}>{selectedTracks.length} tracks</Text>
                 </View>
-                <View style={styles.trackContent}>
-                  <SongCard 
-                    song={track} 
-                    onPress={() => toggleTrackSelection(track)}
-                  />
+                <View style={styles.statDivider} />
+                <View style={styles.statItem}>
+                  <MaterialIcons name="schedule" size={16} color={Colors.textSecondary} />
+                  <Text style={styles.statText}>
+                    {Math.floor(selectedTracks.reduce((sum, t) => sum + t.duration, 0) / 60)} min
+                  </Text>
                 </View>
               </View>
-            </TouchableOpacity>
-          ))
-        )}
-      </View>
-
-      <View style={styles.footer}>
-        <View style={styles.playlistInfo}>
-          <Text style={styles.playlistInfoText}>
-            {selectedTracks.length} tracks • {Math.floor(selectedTracks.reduce((sum, t) => sum + t.duration, 0) / 60)} minutes
-          </Text>
+              
+              <TouchableOpacity
+                style={styles.createButton}
+                onPress={savePlaylist}
+                disabled={isSaving}
+                activeOpacity={0.8}
+              >
+                <LinearGradient
+                  colors={Colors.gradients.green as any}
+                  style={styles.createButtonGradient}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 0 }}
+                >
+                  {isSaving ? (
+                    <ActivityIndicator size="small" color={Colors.background} />
+                  ) : (
+                    <>
+                      <MaterialIcons name="check-circle" size={20} color={Colors.background} />
+                      <Text style={styles.createButtonText}>Create Playlist</Text>
+                    </>
+                  )}
+                </LinearGradient>
+              </TouchableOpacity>
+            </View>
+          </BlurView>
         </View>
-        
-        <Button
-          title={isSaving ? 'Creating Playlist...' : 'Create Playlist'}
-          onPress={savePlaylist}
-          variant="primary"
-          size="large"
-          disabled={isSaving || selectedTracks.length === 0}
-          style={styles.saveButton}
-        />
-      </View>
-    </ScrollView>
+      )}
+    </View>
   );
 }
 
@@ -428,6 +611,69 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  headerContainer: {
+    height: 280,
+    position: 'relative',
+  },
+  headerBackgroundImage: {
+    position: 'absolute',
+    width: '100%',
+    height: '100%',
+    resizeMode: 'cover',
+  },
+  headerGradient: {
+    flex: 1,
+    justifyContent: 'flex-end',
+  },
+  headerContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 24,
+  },
+  backButton: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    zIndex: 10,
+  },
+  backButtonBlur: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  headerTextContainer: {
+    marginTop: 60,
+  },
+  headerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.primary,
+    letterSpacing: 1,
+    marginBottom: 8,
+  },
+  playlistNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  playlistName: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.text,
+    flex: 1,
+  },
+  editIcon: {
+    marginLeft: 8,
+  },
+  playlistNameInput: {
+    fontSize: 32,
+    fontWeight: 'bold',
+    color: Colors.text,
+    padding: 0,
+    borderBottomWidth: 2,
+    borderBottomColor: Colors.primary,
   },
   loadingContainer: {
     flex: 1,
@@ -440,160 +686,339 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.textSecondary,
   },
-  header: {
-    padding: 20,
-    paddingTop: 60,
-    paddingBottom: 30,
+  seedSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+    marginBottom: 8,
   },
-  backButton: {
-    position: 'absolute',
-    top: 60,
-    left: 20,
-    zIndex: 1,
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  headerTitle: {
-    fontSize: 28,
+  seedTrackCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  seedAlbumArt: {
+    width: 80,
+    height: 80,
+    borderRadius: 12,
+    marginRight: 16,
+  },
+  seedTrackInfo: {
+    flex: 1,
+  },
+  seedTrackTitle: {
+    fontSize: 18,
     fontWeight: 'bold',
     color: Colors.text,
-    marginBottom: 8,
-    marginTop: 30,
+    marginBottom: 4,
   },
-  headerSubtitle: {
-    fontSize: 16,
-    color: Colors.text,
-    opacity: 0.9,
-  },
-  section: {
-    marginTop: 20,
-    paddingHorizontal: 16,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  selectAllText: {
+  seedTrackArtist: {
     fontSize: 14,
-    color: Colors.primary,
-    fontWeight: '600',
-  },
-  featuresCard: {
-    marginTop: 12,
-    padding: 16,
-  },
-  featuresTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: Colors.text,
-    marginBottom: 12,
-  },
-  featureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  featureLabel: {
-    width: 60,
-    fontSize: 12,
     color: Colors.textSecondary,
+    marginBottom: 12,
   },
-  featureBar: {
+  miniFeatures: {
+    flexDirection: 'row',
+    gap: 16,
+  },
+  miniFeature: {
     flex: 1,
-    height: 4,
+  },
+  miniFeatureBar: {
+    height: 3,
     backgroundColor: Colors.border,
     borderRadius: 2,
-    marginHorizontal: 12,
+    marginBottom: 4,
   },
-  featureFill: {
-    height: 4,
+  miniFeatureFill: {
+    height: 3,
     backgroundColor: Colors.primary,
     borderRadius: 2,
   },
-  featureValue: {
-    width: 40,
-    fontSize: 12,
+  miniFeatureLabel: {
+    fontSize: 10,
+    color: Colors.textTertiary,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  customizationSection: {
+    paddingHorizontal: 20,
+    marginTop: 24,
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
     color: Colors.text,
-    textAlign: 'right',
+    marginLeft: 8,
   },
-  customizationCard: {
-    padding: 20,
+  customizationCards: {
+    marginTop: 16,
+    gap: 12,
   },
-  sliderContainer: {
-    marginBottom: 24,
+  parameterCard: {
+    borderRadius: 16,
+    overflow: 'hidden',
   },
-  sliderLabel: {
+  parameterGradient: {
+    padding: 16,
+  },
+  parameterHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  parameterTitle: {
     fontSize: 14,
     fontWeight: '600',
     color: Colors.text,
+    marginLeft: 6,
+    flex: 1,
+  },
+  parameterValue: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: Colors.text,
+  },
+  parameterSlider: {
+    width: '100%',
+    height: 30,
+  },
+  trackCountCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 16,
+  },
+  trackCountHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 12,
   },
-  slider: {
-    width: '100%',
-    height: 40,
+  trackCountLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: Colors.text,
+    marginLeft: 6,
+  },
+  trackCountOptions: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  trackCountOption: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    backgroundColor: Colors.surfaceLight,
+    alignItems: 'center',
+  },
+  trackCountOptionActive: {
+    backgroundColor: Colors.primary,
+  },
+  trackCountText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+  },
+  trackCountTextActive: {
+    color: Colors.background,
+  },
+  recommendationsSection: {
+    paddingHorizontal: 20,
+    marginTop: 32,
+  },
+  recommendationsHeader: {
+    marginBottom: 16,
+  },
+  selectionInfo: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginTop: 12,
+  },
+  selectedCount: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  selectAllButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+  },
+  selectAllText: {
+    fontSize: 13,
+    color: Colors.primary,
+    fontWeight: '600',
   },
   sliderLabels: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: -8,
   },
   sliderLabelText: {
-    fontSize: 12,
-    color: Colors.textSecondary,
+    fontSize: 11,
+    color: Colors.textTertiary,
   },
   regenerateButton: {
-    marginTop: 8,
+    marginTop: 16,
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  regenerateGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  regenerateText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
   },
   generatingContainer: {
-    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 20,
+    paddingVertical: 60,
   },
   generatingText: {
-    marginLeft: 12,
+    marginTop: 16,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  generatingSubtext: {
+    marginTop: 4,
     fontSize: 14,
     color: Colors.textSecondary,
   },
-  trackContainer: {
-    marginBottom: 8,
+  emptyState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
   },
-  trackRow: {
+  emptyStateText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+  },
+  emptyStateSubtext: {
+    marginTop: 4,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  trackList: {
+    gap: 8,
+  },
+  trackItem: {
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  trackItemSelected: {
+    borderColor: Colors.primary,
+    backgroundColor: Colors.surfaceLight,
+  },
+  trackItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
+    padding: 12,
   },
-  checkbox: {
+  trackNumber: {
     width: 24,
-    height: 24,
-    borderRadius: 4,
-    borderWidth: 2,
-    borderColor: Colors.primary,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
+    fontSize: 14,
+    color: Colors.textTertiary,
+    textAlign: 'center',
   },
-  trackContent: {
+  trackAlbumArt: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    marginHorizontal: 12,
+  },
+  trackInfo: {
     flex: 1,
   },
-  footer: {
-    padding: 16,
-    marginTop: 20,
-    marginBottom: 40,
+  trackTitle: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 3,
   },
-  playlistInfo: {
+  trackArtist: {
+    fontSize: 13,
+    color: Colors.textSecondary,
+  },
+  trackCheckbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: Colors.border,
+    justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 16,
+    marginLeft: 8,
   },
-  playlistInfoText: {
+  trackCheckboxSelected: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+  },
+  fixedFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    borderTopWidth: 1,
+    borderTopColor: Colors.border,
+  },
+  footerBlur: {
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+  },
+  footerContent: {
+    gap: 12,
+  },
+  footerStats: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 16,
+  },
+  statItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statText: {
     fontSize: 14,
     color: Colors.textSecondary,
   },
-  saveButton: {
-    width: '100%',
+  statDivider: {
+    width: 1,
+    height: 16,
+    backgroundColor: Colors.border,
+  },
+  createButton: {
+    borderRadius: 25,
+    overflow: 'hidden',
+  },
+  createButtonGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    gap: 8,
+  },
+  createButtonText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: Colors.background,
   },
 });
