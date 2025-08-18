@@ -8,49 +8,88 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
-import { authService } from "../../services/auth";
+import { apiService } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface UserProfile {
   id: string;
-  display_name: string;
+  spotifyId: string;
+  displayName: string;
   email: string;
-  images: { url: string }[];
-  product: string;
-  followers: { total: number };
+  imageUrl?: string;
+  createdAt: string;
+}
+
+interface PlaylistStats {
+  totalPlaylists: number;
+  totalTracks: number;
 }
 
 export default function ProfileScreen() {
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [stats, setStats] = useState<PlaylistStats>({
+    totalPlaylists: 0,
+    totalTracks: 0,
+  });
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchProfile();
+    loadProfile();
+    loadStats();
   }, []);
 
-  const fetchProfile = async () => {
+  const loadProfile = async () => {
     try {
-      // For now, using mock data since we need to implement the profile endpoint
-      // In production, this would call the backend API
-      setProfile({
-        id: "user123",
-        display_name: "John Doe",
-        email: "john.doe@example.com",
-        images: [{ url: "https://picsum.photos/200" }],
-        product: "premium",
-        followers: { total: 42 },
-      });
+      setError(null);
+      const response = await apiService.getUserProfile();
+      
+      if (response.success && response.data) {
+        setProfile(response.data);
+      } else {
+        throw new Error(response.error || "Failed to load profile");
+      }
     } catch (error) {
       console.error("Error fetching profile:", error);
+      setError("Unable to load profile. Please try again.");
     } finally {
       setIsLoading(false);
+      setIsRefreshing(false);
     }
+  };
+
+  const loadStats = async () => {
+    try {
+      const response = await apiService.getUserPlaylists();
+      
+      if (response.success && response.data) {
+        const playlists = response.data;
+        const totalTracks = playlists.reduce(
+          (sum: number, playlist: any) => sum + (playlist.tracks?.length || 0),
+          0
+        );
+        
+        setStats({
+          totalPlaylists: playlists.length || 0,
+          totalTracks: totalTracks,
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching stats:", error);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    await Promise.all([loadProfile(), loadStats()]);
   };
 
   const handleLogout = async () => {
@@ -63,35 +102,73 @@ export default function ProfileScreen() {
           text: "Logout",
           style: "destructive",
           onPress: async () => {
-            await authService.logout();
-            await AsyncStorage.clear();
-            router.replace("/login");
+            try {
+              await apiService.logout();
+              await AsyncStorage.clear();
+              router.replace("/login");
+            } catch (error) {
+              console.error("Logout error:", error);
+              Alert.alert("Error", "Failed to logout. Please try again.");
+            }
           },
         },
       ]
     );
   };
 
+  const formatDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  };
+
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
+        <Text style={styles.loadingText}>Loading profile...</Text>
+      </View>
+    );
+  }
+
+  if (error && !profile) {
+    return (
+      <View style={styles.errorContainer}>
+        <Ionicons name="alert-circle" size={48} color={Colors.error} />
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadProfile}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
+    <ScrollView
+      style={styles.container}
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl
+          refreshing={isRefreshing}
+          onRefresh={handleRefresh}
+          colors={[Colors.primary]}
+          tintColor={Colors.primary}
+        />
+      }
+    >
       <LinearGradient
-        colors={Colors.gradients.blue as any}
+        colors={["#1DB954", "#191414"] as any}
         style={styles.header}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
       >
-        <View style={styles.profileInfo}>
-          {profile?.images?.[0]?.url ? (
+        <View style={styles.profileSection}>
+          {profile?.imageUrl ? (
             <Image
-              source={{ uri: profile.images[0].url }}
+              source={{ uri: profile.imageUrl }}
               style={styles.avatar}
             />
           ) : (
@@ -99,104 +176,114 @@ export default function ProfileScreen() {
               <Ionicons name="person" size={50} color={Colors.textSecondary} />
             </View>
           )}
-          <Text style={styles.name}>{profile?.display_name || "User"}</Text>
-          <Text style={styles.email}>{profile?.email}</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>
-              {profile?.product === "premium" ? "Premium" : "Free"}
+          
+          <Text style={styles.name}>
+            {profile?.displayName || "Spotify User"}
+          </Text>
+          <Text style={styles.email}>{profile?.email || ""}</Text>
+          
+          {profile?.createdAt && (
+            <Text style={styles.joinDate}>
+              Member since {formatDate(profile.createdAt)}
             </Text>
-          </View>
+          )}
         </View>
       </LinearGradient>
 
       <View style={styles.content}>
+        {/* Stats Section */}
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>
-              {profile?.followers?.total || 0}
-            </Text>
-            <Text style={styles.statLabel}>Followers</Text>
-          </View>
-          <View style={styles.statCard}>
-            <Text style={styles.statNumber}>12</Text>
+            <Ionicons name="list" size={24} color={Colors.primary} />
+            <Text style={styles.statNumber}>{stats.totalPlaylists}</Text>
             <Text style={styles.statLabel}>Playlists</Text>
           </View>
+          
           <View style={styles.statCard}>
-            <Text style={styles.statNumber}>256</Text>
-            <Text style={styles.statLabel}>Songs</Text>
+            <Ionicons name="musical-notes" size={24} color={Colors.primary} />
+            <Text style={styles.statNumber}>{stats.totalTracks}</Text>
+            <Text style={styles.statLabel}>Tracks</Text>
+          </View>
+          
+          <View style={styles.statCard}>
+            <Ionicons name="time" size={24} color={Colors.primary} />
+            <Text style={styles.statNumber}>0</Text>
+            <Text style={styles.statLabel}>Hours</Text>
           </View>
         </View>
 
+        {/* Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="settings-outline" size={24} color={Colors.text} />
-            <Text style={styles.menuText}>Settings</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={Colors.textSecondary}
-            />
+          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => router.push("/(tabs)/")}
+          >
+            <View style={styles.actionIcon}>
+              <Ionicons name="add-circle" size={24} color={Colors.primary} />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Create Playlist</Text>
+              <Text style={styles.actionDescription}>
+                Generate a new AI-powered playlist
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="heart-outline" size={24} color={Colors.text} />
-            <Text style={styles.menuText}>Liked Songs</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuItem}>
-            <MaterialIcons name="history" size={24} color={Colors.text} />
-            <Text style={styles.menuText}>Recently Played</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={Colors.textSecondary}
-            />
+          
+          <TouchableOpacity 
+            style={styles.actionCard}
+            onPress={() => router.push("/(tabs)/explore")}
+          >
+            <View style={styles.actionIcon}>
+              <Ionicons name="compass" size={24} color={Colors.primary} />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionTitle}>Discover Music</Text>
+              <Text style={styles.actionDescription}>
+                Explore new tracks and artists
+              </Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
+        {/* Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>About</Text>
-
+          <Text style={styles.sectionTitle}>Settings</Text>
+          
           <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="information-circle-outline"
-              size={24}
-              color={Colors.text}
-            />
-            <Text style={styles.menuText}>About SpotYme</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={Colors.textSecondary}
-            />
+            <Ionicons name="notifications-outline" size={24} color={Colors.text} />
+            <Text style={styles.menuText}>Notifications</Text>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
-
+          
           <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="shield-checkmark-outline"
-              size={24}
-              color={Colors.text}
-            />
-            <Text style={styles.menuText}>Privacy Policy</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={24}
-              color={Colors.textSecondary}
-            />
+            <Ionicons name="shield-outline" size={24} color={Colors.text} />
+            <Text style={styles.menuText}>Privacy</Text>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
+          </TouchableOpacity>
+          
+          <TouchableOpacity style={styles.menuItem}>
+            <Ionicons name="help-circle-outline" size={24} color={Colors.text} />
+            <Text style={styles.menuText}>Help & Support</Text>
+            <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
         </View>
 
+        {/* Logout Button */}
         <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#FF4444" />
+          <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
           <Text style={styles.logoutText}>Disconnect Spotify</Text>
         </TouchableOpacity>
+        
+        <View style={styles.footer}>
+          <Text style={styles.footerText}>SpotYme v1.0.0</Text>
+          <Text style={styles.footerSubtext}>
+            Connected to Spotify ID: {profile?.spotifyId}
+          </Text>
+        </View>
       </View>
     </ScrollView>
   );
@@ -213,12 +300,44 @@ const styles = StyleSheet.create({
     alignItems: "center",
     backgroundColor: Colors.background,
   },
+  loadingText: {
+    marginTop: 12,
+    fontSize: 14,
+    color: Colors.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: Colors.background,
+    padding: 20,
+  },
+  errorText: {
+    fontSize: 16,
+    color: Colors.text,
+    textAlign: "center",
+    marginTop: 12,
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: Colors.primary,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  retryButtonText: {
+    color: Colors.background,
+    fontSize: 16,
+    fontWeight: "600",
+  },
   header: {
-    paddingTop: 40,
+    paddingTop: 60,
     paddingBottom: 30,
     paddingHorizontal: 20,
+    borderBottomLeftRadius: 24,
+    borderBottomRightRadius: 24,
   },
-  profileInfo: {
+  profileSection: {
     alignItems: "center",
   },
   avatar: {
@@ -226,6 +345,8 @@ const styles = StyleSheet.create({
     height: 100,
     borderRadius: 50,
     marginBottom: 16,
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   avatarPlaceholder: {
     width: 100,
@@ -235,9 +356,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
     marginBottom: 16,
+    borderWidth: 3,
+    borderColor: "rgba(255, 255, 255, 0.2)",
   },
   name: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: "bold",
     color: Colors.text,
     marginBottom: 4,
@@ -245,19 +368,13 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 14,
     color: Colors.text,
-    opacity: 0.8,
-    marginBottom: 12,
+    opacity: 0.9,
+    marginBottom: 8,
   },
-  badge: {
-    backgroundColor: Colors.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  badgeText: {
-    color: Colors.background,
+  joinDate: {
     fontSize: 12,
-    fontWeight: "600",
+    color: Colors.text,
+    opacity: 0.7,
   },
   content: {
     padding: 20,
@@ -265,34 +382,73 @@ const styles = StyleSheet.create({
   statsContainer: {
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: 30,
+    marginBottom: 24,
+    marginTop: -20,
   },
   statCard: {
     backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 20,
+    borderRadius: 16,
+    padding: 16,
     alignItems: "center",
     flex: 1,
-    marginHorizontal: 5,
+    marginHorizontal: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statNumber: {
     fontSize: 24,
     fontWeight: "bold",
-    color: Colors.primary,
+    color: Colors.text,
+    marginTop: 8,
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
     color: Colors.textSecondary,
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
   },
   section: {
-    marginBottom: 30,
+    marginBottom: 24,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "600",
     color: Colors.text,
     marginBottom: 16,
+  },
+  actionCard: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: Colors.surface,
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+  },
+  actionIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: `${Colors.primary}20`,
+    justifyContent: "center",
+    alignItems: "center",
+    marginRight: 12,
+  },
+  actionContent: {
+    flex: 1,
+  },
+  actionTitle: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: Colors.text,
+    marginBottom: 2,
+  },
+  actionDescription: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
   menuItem: {
     flexDirection: "row",
@@ -300,7 +456,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     padding: 16,
     borderRadius: 12,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   menuText: {
     flex: 1,
@@ -312,16 +468,35 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    backgroundColor: Colors.surface,
+    backgroundColor: "rgba(255, 107, 107, 0.1)",
     padding: 16,
     borderRadius: 12,
-    marginTop: 20,
-    marginBottom: 40,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255, 107, 107, 0.3)",
   },
   logoutText: {
     fontSize: 16,
     fontWeight: "600",
-    color: "#FF4444",
+    color: "#FF6B6B",
     marginLeft: 8,
+  },
+  footer: {
+    alignItems: "center",
+    marginTop: 32,
+    marginBottom: 20,
+  },
+  footerText: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 4,
+  },
+  footerSubtext: {
+    fontSize: 12,
+    color: Colors.textSecondary,
+    opacity: 0.6,
+  },
+  error: {
+    color: "#FF6B6B",
   },
 });
