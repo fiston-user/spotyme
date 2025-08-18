@@ -63,7 +63,11 @@ export default function SearchScreen() {
         const transformedTracks = response.data.tracks.items.map(transformSpotifyTrack);
         setSearchResults(transformedTracks);  
       } else {
-        setError(response.error || 'Failed to search tracks');
+        // Ensure error is always a string
+        const errorMessage = typeof response.error === 'string' 
+          ? response.error 
+          : response.error?.message || 'Failed to search tracks';
+        setError(errorMessage);
         setSearchResults([]);
       }
     } catch (err) {

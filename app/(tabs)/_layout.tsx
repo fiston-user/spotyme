@@ -25,24 +25,19 @@ export default function TabLayout() {
         },
       }}
     >
+      {/* Hide index.tsx from tabs */}
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Discover',
-          tabBarLabel: 'Discover',
-          tabBarIcon: ({ color, focused }) => (
-            <Ionicons 
-              name={focused ? 'musical-notes' : 'musical-notes-outline'} 
-              size={24} 
-              color={color} 
-            />
-          ),
+          href: null, // This hides it from the tab bar
         }}
       />
+      
       <Tabs.Screen
         name="search"
         options={{
           title: 'Search',
+          headerShown: false,
           tabBarLabel: 'Search',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
@@ -57,6 +52,7 @@ export default function TabLayout() {
         name="playlists"
         options={{
           title: 'My Playlists',
+          headerShown: false,
           tabBarLabel: 'Playlists',
           tabBarIcon: ({ color }) => (
             <MaterialIcons 
@@ -71,6 +67,7 @@ export default function TabLayout() {
         name="profile"
         options={{
           title: 'Profile',
+          headerShown: false,
           tabBarLabel: 'Profile',
           tabBarIcon: ({ color, focused }) => (
             <Ionicons 
