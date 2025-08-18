@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -9,7 +9,7 @@ import {
   ActivityIndicator,
   RefreshControl
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Ionicons } from '@expo/vector-icons';
 import { Colors } from '../../constants/Colors';
@@ -65,10 +65,17 @@ export default function PlaylistsScreen() {
     }
   };
 
-  // Load playlists on mount
+  // Load playlists on mount and when tab is focused
   useEffect(() => {
     fetchPlaylists();
   }, []);
+
+  // Refresh playlists when tab comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      fetchPlaylists();
+    }, [])
+  );
 
   const handlePlaylistPress = (playlist: Playlist) => {
     router.push(`/playlist/${playlist.id}`);

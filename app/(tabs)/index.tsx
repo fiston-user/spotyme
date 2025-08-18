@@ -96,25 +96,16 @@ export default function DiscoverScreen() {
   const getRecommendations = async (song: Song) => {
     setIsLoadingRecommendations(true);
     try {
-      const response = await fetch(
-        `https://piranha-coherent-usefully.ngrok-free.app/api/spotify/recommendations?seed_tracks=${song.id}&limit=12`,
-        {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-        }
-      );
+      const response = await apiService.getRecommendations(song.id, 12);
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.success && response.data) {
+        const data = response.data;
         if (data.tracks) {
           const transformedTracks = data.tracks.map(transformSpotifyTrack);
           setRecommendations(transformedTracks);
         }
       } else {
-        Alert.alert('Error', 'Failed to get recommendations');
+        Alert.alert('Error', response.error || 'Failed to get recommendations');
       }
     } catch (err) {
       console.error('Recommendations error:', err);
@@ -134,9 +125,12 @@ export default function DiscoverScreen() {
   const handleAddToPlaylist = (song: Song) => {
     if (!playlistSongs.find(s => s.id === song.id)) {
       setPlaylistSongs([...playlistSongs, song]);
-      Alert.alert('Added!', `${song.title} added to your new playlist`);
+      Alert.alert(
+        'Added to Collection!', 
+        `${song.title} added. You have ${playlistSongs.length + 1} songs collected.\n\nClick "Create Playlist" below to save them.`
+      );
     } else {
-      Alert.alert('Already Added', `${song.title} is already in your playlist`);
+      Alert.alert('Already Added', `${song.title} is already in your collection`);
     }
   };
 
@@ -148,37 +142,39 @@ export default function DiscoverScreen() {
 
     setIsCreatingPlaylist(true);
     try {
-      const seedTracks = [selectedSong?.id, ...playlistSongs.slice(0, 4).map(s => s.id)].filter(Boolean);
+      const seedTracks = selectedSong ? [selectedSong.id] : [];
+      const selectedTrackIds = playlistSongs.map(s => s.id);
       
-      const response = await fetch(
-        'https://piranha-coherent-usefully.ngrok-free.app/api/playlists/generate',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            seedTracks,
-            name: `SpotYme Playlist - ${new Date().toLocaleDateString()}`,
-            description: `Created based on ${selectedSong?.title || 'your selections'}`,
-            options: {
-              limit: 20,
-            },
-          }),
-        }
-      );
+      const response = await apiService.generatePlaylist({
+        seedTracks,
+        selectedTracks: selectedTrackIds, // Send the actual selected tracks
+        name: `SpotYme Playlist - ${new Date().toLocaleDateString()}`,
+        description: `Created based on ${selectedSong?.title || 'your selections'} with ${playlistSongs.length} tracks`,
+        options: {
+          limit: playlistSongs.length,
+        },
+      });
 
-      if (response.ok) {
+      if (response.success && response.data) {
         Alert.alert(
           'Playlist Created!',
-          `Your playlist has been created and saved to your library`
+          `Your playlist has been created and saved to your library`,
+          [
+            {
+              text: 'View Playlists',
+              onPress: () => router.push('/(tabs)/playlists'),
+            },
+            {
+              text: 'OK',
+              style: 'cancel',
+            },
+          ]
         );
         setPlaylistSongs([]);
         setSelectedSong(null);
         setRecommendations([]);
       } else {
-        Alert.alert('Error', 'Failed to create playlist');
+        Alert.alert('Error', response.error || 'Failed to create playlist');
       }
     } catch (err) {
       console.error('Create playlist error:', err);
@@ -260,7 +256,10 @@ export default function DiscoverScreen() {
             {playlistSongs.length > 0 && (
               <View style={styles.playlistPreview}>
                 <Text style={styles.sectionTitle}>
-                  New Playlist ({playlistSongs.length} songs)
+                  Song Collection ({playlistSongs.length} songs)
+                </Text>
+                <Text style={styles.collectionHint}>
+                  These songs will be saved when you create the playlist
                 </Text>
                 <Button
                   title={isCreatingPlaylist ? "Creating..." : "Create Playlist"}
@@ -333,6 +332,12 @@ const styles = StyleSheet.create({
   },
   createButton: {
     marginTop: 12,
+  },
+  collectionHint: {
+    fontSize: 14,
+    color: Colors.textSecondary,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   loadingContainer: {
     alignItems: 'center',

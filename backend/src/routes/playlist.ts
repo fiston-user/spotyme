@@ -9,12 +9,29 @@ router.use(authMiddleware);
 
 router.post('/generate', async (req, res, next) => {
   try {
-    const { seedTracks, name, description, options } = req.body;
+    const { seedTracks, name, description, options, selectedTracks } = req.body;
 
     if (!seedTracks || !Array.isArray(seedTracks) || seedTracks.length === 0) {
       return res.status(400).json({ error: 'Seed tracks required' });
     }
 
+    // If selectedTracks are provided, save those directly instead of generating new ones
+    if (selectedTracks && Array.isArray(selectedTracks) && selectedTracks.length > 0) {
+      const playlist = await playlistService.createPlaylistWithTracks(
+        req.session.accessToken!,
+        req.session.userId!,
+        selectedTracks,
+        {
+          name: name || 'SpotYme Generated Playlist',
+          description: description || 'Created with SpotYme',
+          seedTracks,
+          ...options
+        }
+      );
+      return res.json(playlist);
+    }
+
+    // Otherwise, generate recommendations as before
     const playlist = await playlistService.generatePlaylist(
       req.session.accessToken!,
       req.session.userId!,

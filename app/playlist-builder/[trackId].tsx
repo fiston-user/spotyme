@@ -17,6 +17,7 @@ import { SongCard } from '../../components/SongCard';
 import { Button } from '../../components/ui/Button';
 import { Card } from '../../components/ui/Card';
 import Slider from '@react-native-community/slider';
+import { apiService } from '../../services/api';
 
 export default function PlaylistBuilderScreen() {
   const { trackId } = useLocalSearchParams();
@@ -66,30 +67,18 @@ export default function PlaylistBuilderScreen() {
       // Clean the track ID
       const cleanTrackId = (trackId as string).replace('spotify:track:', '');
       
-      // Fetch track details
-      const trackResponse = await fetch(
-        `https://piranha-coherent-usefully.ngrok-free.app/api/spotify/track/${cleanTrackId}`,
-        {
-          method: 'GET',
-          credentials: 'include',
-        }
-      );
+      // Fetch track details using API service
+      const trackResponse = await apiService.getTrack(cleanTrackId);
 
-      if (trackResponse.ok) {
-        const trackData = await trackResponse.json();
+      if (trackResponse.success && trackResponse.data) {
+        const trackData = trackResponse.data;
         
         // Try to fetch audio features but don't fail if unavailable
         try {
-          const featuresResponse = await fetch(
-            `https://piranha-coherent-usefully.ngrok-free.app/api/spotify/track/${cleanTrackId}/features`,
-            {
-              method: 'GET',
-              credentials: 'include',
-            }
-          );
+          const featuresResponse = await apiService.getTrackAudioFeatures(cleanTrackId);
 
-          if (featuresResponse.ok) {
-            const featuresData = await featuresResponse.json();
+          if (featuresResponse.success && featuresResponse.data) {
+            const featuresData = featuresResponse.data;
             setAudioFeatures(featuresData);
             setTargetEnergy(featuresData.energy || 0.5);
             setTargetValence(featuresData.valence || 0.5);
@@ -110,10 +99,10 @@ export default function PlaylistBuilderScreen() {
         setSeedTrack(transformedTrack);
         setPlaylistName(`Mix inspired by ${transformedTrack.title}`);
         
-        // Auto-generate recommendations using the simple approach
+        // Auto-generate recommendations
         await generateSimpleRecommendations(transformedTrack);
       } else {
-        Alert.alert('Error', 'Track not found. Please try a different track.');
+        Alert.alert('Error', trackResponse.error || 'Track not found. Please try a different track.');
         router.back();
       }
     } catch (error) {
@@ -132,23 +121,15 @@ export default function PlaylistBuilderScreen() {
     setIsGenerating(true);
     try {
       // Use the main recommendations endpoint with AI fallback
-      const params = new URLSearchParams({
-        seed_tracks: currentTrack.id,
-        limit: trackCount.toString(),
-        target_energy: targetEnergy.toString(),
-        target_valence: targetValence.toString(),
-      });
-
-      const response = await fetch(
-        `https://piranha-coherent-usefully.ngrok-free.app/api/spotify/recommendations?${params}`,
-        {
-          method: 'GET',
-          credentials: 'include',
-        }
+      const response = await apiService.getRecommendations(
+        currentTrack.id,
+        trackCount,
+        targetEnergy,
+        targetValence
       );
 
-      if (response.ok) {
-        const data = await response.json();
+      if (response.success && response.data) {
+        const data = response.data;
         if (data.tracks && data.tracks.length > 0) {
           const transformedTracks = data.tracks.map(transformSpotifyTrack);
           setRecommendations(transformedTracks);
@@ -164,8 +145,8 @@ export default function PlaylistBuilderScreen() {
           );
         }
       } else {
-        console.error('Simple recommendations failed');
-        Alert.alert('Error', 'Failed to generate recommendations');
+        console.error('Recommendations failed:', response.error);
+        Alert.alert('Error', response.error || 'Failed to generate recommendations');
       }
     } catch (error) {
       console.error('Error generating simple recommendations:', error);
@@ -199,31 +180,24 @@ export default function PlaylistBuilderScreen() {
 
     setIsSaving(true);
     try {
-      const seedTracks = [trackId, ...selectedTracks.slice(0, 4).map(t => t.id)].filter(Boolean);
+      const cleanTrackId = (trackId as string).replace('spotify:track:', '');
+      const seedTracks = [cleanTrackId].filter(Boolean);
+      const selectedTrackIds = selectedTracks.map(t => t.id);
       
-      const response = await fetch(
-        'https://piranha-coherent-usefully.ngrok-free.app/api/playlists/generate',
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          credentials: 'include',
-          body: JSON.stringify({
-            seedTracks,
-            name: playlistName || `SpotYme Mix - ${new Date().toLocaleDateString()}`,
-            description: `Playlist inspired by ${seedTrack?.title} with ${selectedTracks.length} tracks`,
-            options: {
-              limit: selectedTracks.length,
-              targetEnergy,
-              targetValence,
-            },
-          }),
-        }
-      );
+      const response = await apiService.generatePlaylist({
+        seedTracks,
+        selectedTracks: selectedTrackIds, // Send the actual selected track IDs
+        name: playlistName || `SpotYme Mix - ${new Date().toLocaleDateString()}`,
+        description: `Playlist inspired by ${seedTrack?.title} with ${selectedTracks.length} tracks`,
+        options: {
+          limit: selectedTracks.length,
+          targetEnergy,
+          targetValence,
+        },
+      });
 
-      if (response.ok) {
-        const playlist = await response.json();
+      if (response.success && response.data) {
+        const playlist = response.data;
         Alert.alert(
           'Success!',
           'Your playlist has been created',
@@ -243,7 +217,7 @@ export default function PlaylistBuilderScreen() {
           ]
         );
       } else {
-        Alert.alert('Error', 'Failed to create playlist');
+        Alert.alert('Error', response.error || 'Failed to create playlist');
       }
     } catch (error) {
       console.error('Error saving playlist:', error);

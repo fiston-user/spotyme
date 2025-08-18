@@ -11,6 +11,54 @@ interface GeneratePlaylistOptions {
 }
 
 class PlaylistService {
+  async createPlaylistWithTracks(
+    accessToken: string,
+    userId: string,
+    trackIds: string[],
+    options: GeneratePlaylistOptions & { seedTracks?: string[] }
+  ): Promise<IPlaylist> {
+    try {
+      // Fetch track details from Spotify for each track ID
+      const tracks = await Promise.all(
+        trackIds.map(async (trackId) => {
+          const track = await spotifyApiService.getTrack(accessToken, trackId);
+          return {
+            spotifyId: track.id,
+            name: track.name,
+            artist: track.artists[0].name,
+            album: track.album.name,
+            duration: track.duration_ms,
+            albumArt: track.album.images[0]?.url,
+            previewUrl: track.preview_url,
+          };
+        })
+      );
+
+      // Create playlist in database
+      const playlist = await Playlist.create({
+        userId,
+        name: options.name,
+        description: options.description,
+        tracks,
+        seedTracks: options.seedTracks || [],
+        generationParams: {
+          targetEnergy: options.targetEnergy,
+          targetValence: options.targetValence,
+          genres: options.genres || [],
+        },
+        totalDuration: tracks.reduce(
+          (sum: number, t: any) => sum + t.duration,
+          0
+        ),
+      });
+
+      return playlist;
+    } catch (error) {
+      console.error("Error creating playlist with tracks:", error);
+      throw new Error("Failed to create playlist with selected tracks");
+    }
+  }
+
   async generatePlaylist(
     accessToken: string,
     userId: string,

@@ -165,7 +165,100 @@ class ApiService {
     }
   }
 
+  // Spotify Track Endpoints
+  async getTrack(trackId: string) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/track/${trackId}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch track details",
+      };
+    }
+  }
+
+  async getTrackAudioFeatures(trackId: string) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/track/${trackId}/features`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch audio features",
+      };
+    }
+  }
+
+  async getRecommendations(seedTracks: string, limit: number, targetEnergy?: number, targetValence?: number) {
+    try {
+      const params = new URLSearchParams({
+        seed_tracks: seedTracks,
+        limit: limit.toString(),
+      });
+      
+      if (targetEnergy !== undefined) {
+        params.append('target_energy', targetEnergy.toString());
+      }
+      if (targetValence !== undefined) {
+        params.append('target_valence', targetValence.toString());
+      }
+
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/recommendations?${params}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to get recommendations",
+      };
+    }
+  }
+
   // Playlist Endpoints
+  async generatePlaylist(data: {
+    seedTracks: string[];
+    selectedTracks?: string[];
+    name: string;
+    description: string;
+    options?: {
+      limit?: number;
+      targetEnergy?: number;
+      targetValence?: number;
+    };
+  }) {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/playlists/generate`, {
+        method: "POST",
+        headers: await this.getAuthHeaders(),
+        body: JSON.stringify(data),
+      });
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to generate playlist",
+      };
+    }
+  }
+
   async createPlaylist(name: string, description: string, trackUris: string[]) {
     try {
       const response = await fetch(`${API_BASE_URL}/api/playlists/create`, {
