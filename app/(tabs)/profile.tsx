@@ -9,13 +9,17 @@ import {
   Image,
   ActivityIndicator,
   RefreshControl,
+  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
 import { apiService } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BlurView } from "expo-blur";
+
+const { width: screenWidth } = Dimensions.get("window");
 
 interface UserProfile {
   id: string;
@@ -171,87 +175,134 @@ export default function ProfileScreen() {
   }
 
   return (
-    <ScrollView
-      style={styles.container}
-      showsVerticalScrollIndicator={false}
-      refreshControl={
-        <RefreshControl
-          refreshing={isRefreshing}
-          onRefresh={handleRefresh}
-          colors={[Colors.primary]}
-          tintColor={Colors.primary}
-        />
-      }
-    >
+    <View style={styles.container}>
+      {/* Enhanced Header with Gradient */}
       <LinearGradient
-        colors={["#1DB954", "#191414"] as any}
+        colors={[`${Colors.primary}30`, Colors.background]}
         style={styles.header}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
+        locations={[0, 0.7]}
       >
-        <View style={styles.profileSection}>
-          {profile?.imageUrl ? (
-            <Image source={{ uri: profile.imageUrl }} style={styles.avatar} />
-          ) : (
-            <View style={styles.avatarPlaceholder}>
-              <Ionicons name="person" size={50} color={Colors.textSecondary} />
+        <View style={styles.headerContent}>
+          <View style={styles.headerTop}>
+            <Text style={styles.headerLabel}>ACCOUNT</Text>
+            <TouchableOpacity 
+              style={styles.headerAction}
+              onPress={loadProfile}
+              activeOpacity={0.7}
+            >
+              <MaterialIcons name="refresh" size={20} color={Colors.text} />
+            </TouchableOpacity>
+          </View>
+          <Text style={styles.headerTitle}>Profile</Text>
+          
+          {/* Profile Info Section */}
+          <View style={styles.profileSection}>
+            {profile?.imageUrl ? (
+              <Image source={{ uri: profile.imageUrl }} style={styles.avatar} />
+            ) : (
+              <View style={styles.avatarPlaceholder}>
+                <MaterialIcons name="person" size={40} color={Colors.textSecondary} />
+              </View>
+            )}
+            
+            <View style={styles.profileInfo}>
+              <Text style={styles.name}>
+                {profile?.displayName || "Spotify User"}
+              </Text>
+              <Text style={styles.email}>{profile?.email || ""}</Text>
+              {profile?.createdAt && (
+                <View style={styles.joinDateRow}>
+                  <MaterialIcons name="calendar-today" size={12} color={Colors.textSecondary} />
+                  <Text style={styles.joinDate}>
+                    Member since {formatDate(profile.createdAt)}
+                  </Text>
+                </View>
+              )}
             </View>
-          )}
-
-          <Text style={styles.name}>
-            {profile?.displayName || "Spotify User"}
-          </Text>
-          <Text style={styles.email}>{profile?.email || ""}</Text>
-
-          {profile?.createdAt && (
-            <Text style={styles.joinDate}>
-              Member since {formatDate(profile.createdAt)}
-            </Text>
-          )}
+          </View>
         </View>
       </LinearGradient>
 
-      <View style={styles.content}>
-        {/* Stats Section */}
-        {/* <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <Ionicons name="list" size={24} color={Colors.primary} />
-            <Text style={styles.statNumber}>{stats.totalPlaylists}</Text>
-            <Text style={styles.statLabel}>Playlists</Text>
-          </View>
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={isRefreshing}
+            onRefresh={handleRefresh}
+            colors={[Colors.primary]}
+            tintColor={Colors.primary}
+          />
+        }
+        contentContainerStyle={styles.scrollContent}
+      >
 
-          <View style={styles.statCard}>
-            <Ionicons name="musical-notes" size={24} color={Colors.primary} />
-            <Text style={styles.statNumber}>{stats.totalTracks}</Text>
-            <Text style={styles.statLabel}>Tracks</Text>
-          </View>
+        {/* Enhanced Stats Section */}
+        <View style={styles.statsSection}>
+          <Text style={styles.statsTitle}>Your Activity</Text>
+          <View style={styles.statsGrid}>
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(29, 185, 84, 0.1)', 'rgba(30, 215, 96, 0.05)']}
+                style={styles.statGradient}
+              >
+                <MaterialIcons name="library-music" size={28} color={Colors.primary} />
+                <Text style={styles.statNumber}>{stats.totalPlaylists}</Text>
+                <Text style={styles.statLabel}>Playlists</Text>
+              </LinearGradient>
+            </View>
 
-          <View style={styles.statCard}>
-            <Ionicons name="time" size={24} color={Colors.primary} />
-            <Text style={styles.statNumber}>0</Text>
-            <Text style={styles.statLabel}>Hours</Text>
-          </View>
-        </View> */}
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(69, 10, 245, 0.1)', 'rgba(192, 116, 178, 0.05)']}
+                style={styles.statGradient}
+              >
+                <MaterialIcons name="queue-music" size={28} color="#8B5CF6" />
+                <Text style={styles.statNumber}>{stats.totalTracks}</Text>
+                <Text style={styles.statLabel}>Tracks</Text>
+              </LinearGradient>
+            </View>
 
-        {/* Quick Actions */}
+            <View style={styles.statCard}>
+              <LinearGradient
+                colors={['rgba(255, 107, 0, 0.1)', 'rgba(255, 165, 0, 0.05)']}
+                style={styles.statGradient}
+              >
+                <MaterialIcons name="schedule" size={28} color="#FFA500" />
+                <Text style={styles.statNumber}>
+                  {Math.floor((stats.totalTracks * 3.5) / 60)}
+                </Text>
+                <Text style={styles.statLabel}>Hours</Text>
+              </LinearGradient>
+            </View>
+          </View>
+        </View>
+
+        {/* Enhanced Quick Actions */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="flash-on" size={20} color={Colors.primary} />
+            <Text style={styles.sectionTitle}>Quick Actions</Text>
+          </View>
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push("/(tabs)/")}
+            onPress={() => router.push("/(tabs)/search")}
+            activeOpacity={0.7}
           >
-            <View style={styles.actionIcon}>
-              <Ionicons name="add-circle" size={24} color={Colors.primary} />
-            </View>
+            <LinearGradient
+              colors={Colors.gradients.green as any}
+              style={styles.actionIcon}
+            >
+              <MaterialIcons name="add" size={24} color={Colors.background} />
+            </LinearGradient>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>Create Playlist</Text>
               <Text style={styles.actionDescription}>
-                Generate a new AI-powered playlist
+                Build AI-powered playlists from any song
               </Text>
             </View>
-            <Ionicons
-              name="chevron-forward"
+            <MaterialIcons
+              name="chevron-right"
               size={20}
               color={Colors.textSecondary}
             />
@@ -259,82 +310,103 @@ export default function ProfileScreen() {
 
           <TouchableOpacity
             style={styles.actionCard}
-            onPress={() => router.push("/(tabs)/explore")}
+            onPress={() => router.push("/(tabs)/playlists")}
+            activeOpacity={0.7}
           >
-            <View style={styles.actionIcon}>
-              <Ionicons name="compass" size={24} color={Colors.primary} />
-            </View>
+            <LinearGradient
+              colors={Colors.gradients.purple as any}
+              style={styles.actionIcon}
+            >
+              <MaterialIcons name="library-music" size={22} color={Colors.background} />
+            </LinearGradient>
             <View style={styles.actionContent}>
-              <Text style={styles.actionTitle}>Discover Music</Text>
+              <Text style={styles.actionTitle}>My Playlists</Text>
               <Text style={styles.actionDescription}>
-                Explore new tracks and artists
+                View and manage your music collections
               </Text>
             </View>
-            <Ionicons
-              name="chevron-forward"
+            <MaterialIcons
+              name="chevron-right"
               size={20}
               color={Colors.textSecondary}
             />
           </TouchableOpacity>
         </View>
 
-        {/* Settings Section */}
+        {/* Enhanced Settings Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Settings</Text>
+          <View style={styles.sectionHeader}>
+            <MaterialIcons name="settings" size={20} color={Colors.textSecondary} />
+            <Text style={styles.sectionTitle}>Settings</Text>
+          </View>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="notifications-outline"
-              size={24}
-              color={Colors.text}
-            />
-            <Text style={styles.menuText}>Notifications</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
+          <View style={styles.settingsGroup}>
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View style={styles.settingIconContainer}>
+                <MaterialIcons name="notifications" size={22} color={Colors.text} />
+              </View>
+              <Text style={styles.settingText}>Notifications</Text>
+              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons name="shield-outline" size={24} color={Colors.text} />
-            <Text style={styles.menuText}>Privacy</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View style={styles.settingIconContainer}>
+                <MaterialIcons name="lock" size={22} color={Colors.text} />
+              </View>
+              <Text style={styles.settingText}>Privacy & Security</Text>
+              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
 
-          <TouchableOpacity style={styles.menuItem}>
-            <Ionicons
-              name="help-circle-outline"
-              size={24}
-              color={Colors.text}
-            />
-            <Text style={styles.menuText}>Help & Support</Text>
-            <Ionicons
-              name="chevron-forward"
-              size={20}
-              color={Colors.textSecondary}
-            />
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View style={styles.settingIconContainer}>
+                <MaterialIcons name="help" size={22} color={Colors.text} />
+              </View>
+              <Text style={styles.settingText}>Help & Support</Text>
+              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
+              <View style={styles.settingIconContainer}>
+                <MaterialIcons name="info" size={22} color={Colors.text} />
+              </View>
+              <Text style={styles.settingText}>About</Text>
+              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+            </TouchableOpacity>
+          </View>
         </View>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <Ionicons name="log-out-outline" size={24} color="#FF6B6B" />
-          <Text style={styles.logoutText}>Disconnect Spotify</Text>
+        {/* Enhanced Logout Button */}
+        <TouchableOpacity 
+          style={styles.logoutButton} 
+          onPress={handleLogout}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['rgba(226, 33, 52, 0.1)', 'rgba(226, 33, 52, 0.05)']}
+            style={styles.logoutGradient}
+          >
+            <MaterialIcons name="logout" size={22} color={Colors.danger} />
+            <Text style={styles.logoutText}>Disconnect Spotify</Text>
+          </LinearGradient>
         </TouchableOpacity>
 
+        {/* Footer */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>SpotYme v1.0.0</Text>
-          <Text style={styles.footerSubtext}>
-            Connected to Spotify ID: {profile?.spotifyId}
-          </Text>
+          <View style={styles.footerInfo}>
+            <Text style={styles.footerTitle}>SpotYme</Text>
+            <Text style={styles.footerVersion}>Version 1.0.0</Text>
+          </View>
+          {profile?.spotifyId && (
+            <View style={styles.footerConnection}>
+              <MaterialIcons name="check-circle" size={14} color={Colors.primary} />
+              <Text style={styles.footerConnectionText}>
+                Connected • {profile.spotifyId.substring(0, 10)}...
+              </Text>
+            </View>
+          )}
         </View>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </View>
   );
 }
 
@@ -342,6 +414,9 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  scrollContent: {
+    paddingBottom: 40,
   },
   loadingContainer: {
     flex: 1,
@@ -381,109 +456,143 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 60,
-    paddingBottom: 30,
+    paddingBottom: 20,
+  },
+  headerContent: {
     paddingHorizontal: 20,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  headerLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
+    letterSpacing: 1,
+  },
+  headerAction: {
+    padding: 4,
+  },
+  headerTitle: {
+    fontSize: 36,
+    fontWeight: 'bold',
+    color: Colors.text,
+    marginBottom: 20,
   },
   profileSection: {
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  profileInfo: {
+    flex: 1,
   },
   avatar: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    borderWidth: 2,
+    borderColor: Colors.border,
   },
   avatarPlaceholder: {
-    width: 100,
-    height: 100,
-    borderRadius: 50,
+    width: 80,
+    height: 80,
+    borderRadius: 40,
     backgroundColor: Colors.surface,
     justifyContent: "center",
     alignItems: "center",
-    marginBottom: 16,
-    borderWidth: 3,
-    borderColor: "rgba(255, 255, 255, 0.2)",
+    borderWidth: 2,
+    borderColor: Colors.border,
   },
   name: {
-    fontSize: 28,
-    fontWeight: "bold",
+    fontSize: 20,
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 4,
   },
   email: {
     fontSize: 14,
-    color: Colors.text,
-    opacity: 0.9,
+    color: Colors.textSecondary,
     marginBottom: 8,
+  },
+  joinDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   joinDate: {
     fontSize: 12,
-    color: Colors.text,
-    opacity: 0.7,
+    color: Colors.textTertiary,
   },
-  content: {
-    padding: 20,
-  },
-  statsContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
+  statsSection: {
+    paddingHorizontal: 20,
+    paddingTop: 20,
     marginBottom: 24,
-    marginTop: -20,
+  },
+  statsTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
+    marginBottom: 12,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    gap: 12,
   },
   statCard: {
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
-    padding: 16,
-    alignItems: "center",
     flex: 1,
-    marginHorizontal: 4,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  statGradient: {
+    padding: 16,
+    alignItems: 'center',
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: "bold",
+    fontWeight: 'bold',
     color: Colors.text,
     marginTop: 8,
     marginBottom: 4,
   },
   statLabel: {
-    fontSize: 12,
+    fontSize: 11,
     color: Colors.textSecondary,
-    textTransform: "uppercase",
+    textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   section: {
+    paddingHorizontal: 20,
     marginBottom: 24,
   },
-  sectionTitle: {
-    fontSize: 20,
-    fontWeight: "600",
-    color: Colors.text,
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
     marginBottom: 16,
   },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: Colors.text,
+  },
   actionCard: {
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: Colors.surface,
     padding: 16,
     borderRadius: 12,
     marginBottom: 12,
   },
   actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: `${Colors.primary}20`,
-    justifyContent: "center",
-    alignItems: "center",
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
   },
   actionContent: {
@@ -491,7 +600,7 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: 16,
-    fontWeight: "600",
+    fontWeight: '600',
     color: Colors.text,
     marginBottom: 2,
   },
@@ -499,50 +608,76 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.textSecondary,
   },
-  menuItem: {
-    flexDirection: "row",
-    alignItems: "center",
+  settingsGroup: {
     backgroundColor: Colors.surface,
-    padding: 16,
     borderRadius: 12,
-    marginBottom: 8,
+    overflow: 'hidden',
   },
-  menuText: {
+  settingItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: Colors.border,
+  },
+  settingIconContainer: {
+    width: 32,
+    marginRight: 12,
+  },
+  settingText: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: Colors.text,
-    marginLeft: 12,
   },
   logoutButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "rgba(255, 107, 107, 0.1)",
-    padding: 16,
+    marginHorizontal: 20,
+    marginVertical: 12,
     borderRadius: 12,
-    marginTop: 12,
-    borderWidth: 1,
-    borderColor: "rgba(255, 107, 107, 0.3)",
+    overflow: 'hidden',
+  },
+  logoutGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 16,
+    gap: 8,
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: "600",
-    color: "#FF6B6B",
-    marginLeft: 8,
+    fontWeight: '600',
+    color: Colors.danger,
   },
   footer: {
-    alignItems: "center",
-    marginTop: 32,
-    marginBottom: 20,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingTop: 32,
+    paddingBottom: 20,
   },
-  footerText: {
-    fontSize: 14,
-    color: Colors.textSecondary,
+  footerInfo: {
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  footerTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: Colors.text,
     marginBottom: 4,
   },
-  footerSubtext: {
+  footerVersion: {
     fontSize: 12,
     color: Colors.textSecondary,
-    opacity: 0.6,
+  },
+  footerConnection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 20,
+  },
+  footerConnectionText: {
+    fontSize: 12,
+    color: Colors.textSecondary,
   },
 });
