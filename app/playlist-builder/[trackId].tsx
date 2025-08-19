@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -10,45 +10,45 @@ import {
   Image,
   Dimensions,
   TextInput,
-} from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { LinearGradient } from 'expo-linear-gradient';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { Song } from '../../constants/MockData';
-import { SongCard } from '../../components/SongCard';
-import { Button } from '../../components/ui/Button';
-import { Card } from '../../components/ui/Card';
-import Slider from '@react-native-community/slider';
-import { apiService } from '../../services/api';
-import { BlurView } from 'expo-blur';
+} from "react-native";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { LinearGradient } from "expo-linear-gradient";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Colors } from "../../constants/Colors";
+import { Song } from "../../constants/MockData";
+import { SongCard } from "../../components/SongCard";
+import { Button } from "../../components/ui/Button";
+import { Card } from "../../components/ui/Card";
+import Slider from "@react-native-community/slider";
+import { apiService } from "../../services/api";
+import { BlurView } from "expo-blur";
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 const formatDuration = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
-  return `${mins}:${secs.toString().padStart(2, '0')}`;
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
 };
 
 export default function PlaylistBuilderScreen() {
   const { trackId } = useLocalSearchParams();
   const router = useRouter();
-  
+
   const [seedTrack, setSeedTrack] = useState<Song | null>(null);
   const [recommendations, setRecommendations] = useState<Song[]>([]);
   const [selectedTracks, setSelectedTracks] = useState<Song[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  
+
   // Customization parameters
-  const [playlistName, setPlaylistName] = useState('');
+  const [playlistName, setPlaylistName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
   const [targetEnergy, setTargetEnergy] = useState(0.5);
   const [targetValence, setTargetValence] = useState(0.5);
   const [trackCount, setTrackCount] = useState(20);
-  
+
   // Audio features of seed track
   const [audioFeatures, setAudioFeatures] = useState<any>(null);
 
@@ -57,10 +57,13 @@ export default function PlaylistBuilderScreen() {
     return {
       id: track.id,
       title: track.name,
-      artist: track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
-      album: track.album?.name || 'Unknown Album',
+      artist:
+        track.artists?.map((a: any) => a.name).join(", ") || "Unknown Artist",
+      album: track.album?.name || "Unknown Album",
       duration: Math.floor(track.duration_ms / 1000),
-      albumArt: track.album?.images?.[0]?.url || 'https://picsum.photos/seed/spotify/300/300',
+      albumArt:
+        track.album?.images?.[0]?.url ||
+        "https://picsum.photos/seed/spotify/300/300",
       genre: [],
       mood: [],
       energy: audioFeatures?.energy || 0.5,
@@ -78,17 +81,19 @@ export default function PlaylistBuilderScreen() {
     setIsLoading(true);
     try {
       // Clean the track ID
-      const cleanTrackId = (trackId as string).replace('spotify:track:', '');
-      
+      const cleanTrackId = (trackId as string).replace("spotify:track:", "");
+
       // Fetch track details using API service
       const trackResponse = await apiService.getTrack(cleanTrackId);
 
       if (trackResponse.success && trackResponse.data) {
         const trackData = trackResponse.data;
-        
+
         // Try to fetch audio features but don't fail if unavailable
         try {
-          const featuresResponse = await apiService.getTrackAudioFeatures(cleanTrackId);
+          const featuresResponse = await apiService.getTrackAudioFeatures(
+            cleanTrackId
+          );
 
           if (featuresResponse.success && featuresResponse.data) {
             const featuresData = featuresResponse.data;
@@ -102,7 +107,7 @@ export default function PlaylistBuilderScreen() {
             setTargetValence(0.5);
           }
         } catch (featuresError) {
-          console.log('Audio features not available, using defaults');
+          console.log("Audio features not available, using defaults");
           setAudioFeatures({ energy: 0.5, valence: 0.5 });
           setTargetEnergy(0.5);
           setTargetValence(0.5);
@@ -111,16 +116,20 @@ export default function PlaylistBuilderScreen() {
         const transformedTrack = transformSpotifyTrack(trackData);
         setSeedTrack(transformedTrack);
         setPlaylistName(`Mix inspired by ${transformedTrack.title}`);
-        
+
         // Auto-generate recommendations
         await generateSimpleRecommendations(transformedTrack);
       } else {
-        Alert.alert('Error', trackResponse.error || 'Track not found. Please try a different track.');
+        Alert.alert(
+          "Error",
+          trackResponse.error ||
+            "Track not found. Please try a different track."
+        );
         router.back();
       }
     } catch (error) {
-      console.error('Error fetching track details:', error);
-      Alert.alert('Error', 'Failed to load track details');
+      console.error("Error fetching track details:", error);
+      Alert.alert("Error", "Failed to load track details");
       router.back();
     } finally {
       setIsLoading(false);
@@ -130,7 +139,7 @@ export default function PlaylistBuilderScreen() {
   const generateSimpleRecommendations = async (track?: Song) => {
     const currentTrack = track || seedTrack;
     if (!currentTrack) return;
-    
+
     setIsGenerating(true);
     try {
       // Use the main recommendations endpoint with AI fallback
@@ -153,17 +162,23 @@ export default function PlaylistBuilderScreen() {
           setRecommendations([]);
           setSelectedTracks([]);
           Alert.alert(
-            'No Recommendations', 
-            'Unable to find similar tracks. Try searching for a different song.'
+            "No Recommendations",
+            "Unable to find similar tracks. Try searching for a different song."
           );
         }
       } else {
-        console.error('Recommendations failed:', response.error);
-        Alert.alert('Error', response.error || 'Failed to generate recommendations');
+        console.error("Recommendations failed:", response.error);
+        Alert.alert(
+          "Error",
+          response.error || "Failed to generate recommendations"
+        );
       }
     } catch (error) {
-      console.error('Error generating simple recommendations:', error);
-      Alert.alert('Error', 'Failed to generate recommendations. Please try again.');
+      console.error("Error generating simple recommendations:", error);
+      Alert.alert(
+        "Error",
+        "Failed to generate recommendations. Please try again."
+      );
     } finally {
       setIsGenerating(false);
     }
@@ -175,10 +190,10 @@ export default function PlaylistBuilderScreen() {
   };
 
   const toggleTrackSelection = (track: Song) => {
-    setSelectedTracks(prev => {
-      const isSelected = prev.some(t => t.id === track.id);
+    setSelectedTracks((prev) => {
+      const isSelected = prev.some((t) => t.id === track.id);
       if (isSelected) {
-        return prev.filter(t => t.id !== track.id);
+        return prev.filter((t) => t.id !== track.id);
       } else {
         return [...prev, track];
       }
@@ -187,20 +202,24 @@ export default function PlaylistBuilderScreen() {
 
   const savePlaylist = async () => {
     if (selectedTracks.length === 0) {
-      Alert.alert('No Tracks Selected', 'Please select at least one track for your playlist');
+      Alert.alert(
+        "No Tracks Selected",
+        "Please select at least one track for your playlist"
+      );
       return;
     }
 
     setIsSaving(true);
     try {
-      const cleanTrackId = (trackId as string).replace('spotify:track:', '');
+      const cleanTrackId = (trackId as string).replace("spotify:track:", "");
       const seedTracks = [cleanTrackId].filter(Boolean);
-      const selectedTrackIds = selectedTracks.map(t => t.id);
-      
+      const selectedTrackIds = selectedTracks.map((t) => t.id);
+
       const response = await apiService.generatePlaylist({
         seedTracks,
         selectedTracks: selectedTrackIds, // Send the actual selected track IDs
-        name: playlistName || `SpotYme Mix - ${new Date().toLocaleDateString()}`,
+        name:
+          playlistName || `SpotYme Mix - ${new Date().toLocaleDateString()}`,
         description: `Playlist inspired by ${seedTrack?.title} with ${selectedTracks.length} tracks`,
         options: {
           limit: selectedTracks.length,
@@ -211,30 +230,26 @@ export default function PlaylistBuilderScreen() {
 
       if (response.success && response.data) {
         const playlist = response.data;
-        Alert.alert(
-          'Success!',
-          'Your playlist has been created',
-          [
-            {
-              text: 'View Playlist',
-              onPress: () => router.replace(`/playlist/${playlist._id}`),
+        Alert.alert("Success!", "Your playlist has been created", [
+          {
+            text: "View Playlist",
+            onPress: () => router.replace(`/playlist/${playlist._id}`),
+          },
+          {
+            text: "Create Another",
+            style: "cancel",
+            onPress: () => {
+              setSelectedTracks([]);
+              generateRecommendations();
             },
-            {
-              text: 'Create Another',
-              style: 'cancel',
-              onPress: () => {
-                setSelectedTracks([]);
-                generateRecommendations();
-              },
-            },
-          ]
-        );
+          },
+        ]);
       } else {
-        Alert.alert('Error', response.error || 'Failed to create playlist');
+        Alert.alert("Error", response.error || "Failed to create playlist");
       }
     } catch (error) {
-      console.error('Error saving playlist:', error);
-      Alert.alert('Error', 'Failed to save playlist');
+      console.error("Error saving playlist:", error);
+      Alert.alert("Error", "Failed to save playlist");
     } finally {
       setIsSaving(false);
     }
@@ -242,7 +257,10 @@ export default function PlaylistBuilderScreen() {
 
   const exportToSpotify = async () => {
     // This will be implemented after playlist is saved
-    Alert.alert('Coming Soon', 'Export to Spotify will be available after saving the playlist');
+    Alert.alert(
+      "Coming Soon",
+      "Export to Spotify will be available after saving the playlist"
+    );
   };
 
   if (isLoading) {
@@ -260,19 +278,23 @@ export default function PlaylistBuilderScreen() {
         {/* Enhanced Header with Album Art Background */}
         <View style={styles.headerContainer}>
           {seedTrack && (
-            <Image 
-              source={{ uri: seedTrack.albumArt }} 
+            <Image
+              source={{ uri: seedTrack.albumArt }}
               style={styles.headerBackgroundImage}
               blurRadius={20}
             />
           )}
           <LinearGradient
-            colors={['rgba(18, 18, 18, 0.3)', 'rgba(18, 18, 18, 0.95)', Colors.background]}
+            colors={[
+              "rgba(18, 18, 18, 0.3)",
+              "rgba(18, 18, 18, 0.95)",
+              Colors.background,
+            ]}
             style={styles.headerGradient}
             locations={[0, 0.6, 1]}
           >
             <View style={styles.headerContent}>
-              <TouchableOpacity 
+              <TouchableOpacity
                 style={styles.backButton}
                 onPress={() => router.back()}
                 activeOpacity={0.7}
@@ -281,7 +303,7 @@ export default function PlaylistBuilderScreen() {
                   <Ionicons name="arrow-back" size={22} color={Colors.text} />
                 </BlurView>
               </TouchableOpacity>
-              
+
               <View style={styles.headerTextContainer}>
                 <Text style={styles.headerLabel}>CREATING PLAYLIST</Text>
                 {isEditingName ? (
@@ -299,9 +321,14 @@ export default function PlaylistBuilderScreen() {
                   <TouchableOpacity onPress={() => setIsEditingName(true)}>
                     <View style={styles.playlistNameContainer}>
                       <Text style={styles.playlistName} numberOfLines={1}>
-                        {playlistName || 'Tap to name your playlist'}
+                        {playlistName || "Tap to name your playlist"}
                       </Text>
-                      <MaterialIcons name="edit" size={18} color={Colors.textSecondary} style={styles.editIcon} />
+                      <MaterialIcons
+                        name="edit"
+                        size={18}
+                        color={Colors.textSecondary}
+                        style={styles.editIcon}
+                      />
                     </View>
                   </TouchableOpacity>
                 )}
@@ -314,38 +341,47 @@ export default function PlaylistBuilderScreen() {
         {seedTrack && (
           <View style={styles.seedSection}>
             <View style={styles.sectionHeaderRow}>
-              <MaterialIcons name="music-note" size={20} color={Colors.primary} />
+              <MaterialIcons
+                name="music-note"
+                size={20}
+                color={Colors.primary}
+              />
               <Text style={styles.sectionTitle}>Building playlist from</Text>
             </View>
-            
+
             <View style={styles.seedTrackCard}>
-              <Image source={{ uri: seedTrack.albumArt }} style={styles.seedAlbumArt} />
+              <Image
+                source={{ uri: seedTrack.albumArt }}
+                style={styles.seedAlbumArt}
+              />
               <View style={styles.seedTrackInfo}>
-                <Text style={styles.seedTrackTitle} numberOfLines={1}>{seedTrack.title}</Text>
+                <Text style={styles.seedTrackTitle} numberOfLines={1}>
+                  {seedTrack.title}
+                </Text>
                 <Text style={styles.seedTrackArtist} numberOfLines={1}>
                   {seedTrack.artist} • {seedTrack.album}
                 </Text>
-                
+
                 {audioFeatures && (
                   <View style={styles.miniFeatures}>
                     <View style={styles.miniFeature}>
                       <View style={styles.miniFeatureBar}>
-                        <View 
+                        <View
                           style={[
                             styles.miniFeatureFill,
-                            { width: `${audioFeatures.energy * 100}%` }
-                          ]} 
+                            { width: `${audioFeatures.energy * 100}%` },
+                          ]}
                         />
                       </View>
                       <Text style={styles.miniFeatureLabel}>Energy</Text>
                     </View>
                     <View style={styles.miniFeature}>
                       <View style={styles.miniFeatureBar}>
-                        <View 
+                        <View
                           style={[
                             styles.miniFeatureFill,
-                            { width: `${audioFeatures.valence * 100}%` }
-                          ]} 
+                            { width: `${audioFeatures.valence * 100}%` },
+                          ]}
                         />
                       </View>
                       <Text style={styles.miniFeatureLabel}>Mood</Text>
@@ -363,12 +399,12 @@ export default function PlaylistBuilderScreen() {
             <MaterialIcons name="tune" size={20} color={Colors.primary} />
             <Text style={styles.sectionTitle}>Fine-tune your mix</Text>
           </View>
-          
+
           <View style={styles.customizationCards}>
             {/* Energy Card */}
             <View style={styles.parameterCard}>
               <LinearGradient
-                colors={['rgba(255, 107, 0, 0.1)', 'rgba(255, 165, 0, 0.05)']}
+                colors={["rgba(255, 107, 0, 0.1)", "rgba(255, 165, 0, 0.05)"]}
                 style={styles.parameterGradient}
               >
                 <View style={styles.parameterHeader}>
@@ -398,7 +434,7 @@ export default function PlaylistBuilderScreen() {
             {/* Mood Card */}
             <View style={styles.parameterCard}>
               <LinearGradient
-                colors={['rgba(29, 185, 84, 0.1)', 'rgba(30, 215, 96, 0.05)']}
+                colors={["rgba(29, 185, 84, 0.1)", "rgba(30, 215, 96, 0.05)"]}
                 style={styles.parameterGradient}
               >
                 <View style={styles.parameterHeader}>
@@ -428,7 +464,11 @@ export default function PlaylistBuilderScreen() {
             {/* Track Count Card */}
             <View style={styles.trackCountCard}>
               <View style={styles.trackCountHeader}>
-                <MaterialIcons name="queue-music" size={18} color={Colors.textSecondary} />
+                <MaterialIcons
+                  name="queue-music"
+                  size={18}
+                  color={Colors.textSecondary}
+                />
                 <Text style={styles.trackCountLabel}>Playlist Size</Text>
               </View>
               <View style={styles.trackCountOptions}>
@@ -437,14 +477,16 @@ export default function PlaylistBuilderScreen() {
                     key={count}
                     style={[
                       styles.trackCountOption,
-                      trackCount === count && styles.trackCountOptionActive
+                      trackCount === count && styles.trackCountOptionActive,
                     ]}
                     onPress={() => setTrackCount(count)}
                   >
-                    <Text style={[
-                      styles.trackCountText,
-                      trackCount === count && styles.trackCountTextActive
-                    ]}>
+                    <Text
+                      style={[
+                        styles.trackCountText,
+                        trackCount === count && styles.trackCountTextActive,
+                      ]}
+                    >
                       {count}
                     </Text>
                   </TouchableOpacity>
@@ -460,7 +502,11 @@ export default function PlaylistBuilderScreen() {
             activeOpacity={0.7}
           >
             <LinearGradient
-              colors={isGenerating ? [Colors.surface, Colors.surface] : Colors.gradients.green as any}
+              colors={
+                isGenerating
+                  ? [Colors.surface, Colors.surface]
+                  : (Colors.gradients.green as any)
+              }
               style={styles.regenerateGradient}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -481,7 +527,11 @@ export default function PlaylistBuilderScreen() {
         <View style={styles.recommendationsSection}>
           <View style={styles.recommendationsHeader}>
             <View style={styles.sectionHeaderRow}>
-              <MaterialIcons name="library-music" size={20} color={Colors.primary} />
+              <MaterialIcons
+                name="library-music"
+                size={20}
+                color={Colors.primary}
+              />
               <Text style={styles.sectionTitle}>Your Mix</Text>
             </View>
             <View style={styles.selectionInfo}>
@@ -500,7 +550,9 @@ export default function PlaylistBuilderScreen() {
                 activeOpacity={0.7}
               >
                 <Text style={styles.selectAllText}>
-                  {selectedTracks.length === recommendations.length ? 'Clear' : 'Select All'}
+                  {selectedTracks.length === recommendations.length
+                    ? "Clear"
+                    : "Select All"}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -509,14 +561,22 @@ export default function PlaylistBuilderScreen() {
           {isGenerating ? (
             <View style={styles.generatingContainer}>
               <ActivityIndicator size="large" color={Colors.primary} />
-              <Text style={styles.generatingText}>Discovering perfect matches...</Text>
+              <Text style={styles.generatingText}>
+                Discovering perfect matches...
+              </Text>
               <Text style={styles.generatingSubtext}>This won't take long</Text>
             </View>
           ) : recommendations.length === 0 ? (
             <View style={styles.emptyState}>
-              <MaterialIcons name="music-off" size={48} color={Colors.textTertiary} />
+              <MaterialIcons
+                name="music-off"
+                size={48}
+                color={Colors.textTertiary}
+              />
               <Text style={styles.emptyStateText}>No recommendations yet</Text>
-              <Text style={styles.emptyStateSubtext}>Adjust the parameters and generate a mix</Text>
+              <Text style={styles.emptyStateSubtext}>
+                Adjust the parameters and generate a mix
+              </Text>
             </View>
           ) : (
             <View style={styles.trackList}>
@@ -526,25 +586,38 @@ export default function PlaylistBuilderScreen() {
                   onPress={() => toggleTrackSelection(track)}
                   style={[
                     styles.trackItem,
-                    selectedTracks.some(t => t.id === track.id) && styles.trackItemSelected
+                    selectedTracks.some((t) => t.id === track.id) &&
+                      styles.trackItemSelected,
                   ]}
                   activeOpacity={0.7}
                 >
                   <View style={styles.trackItemContent}>
                     <Text style={styles.trackNumber}>{index + 1}</Text>
-                    <Image source={{ uri: track.albumArt }} style={styles.trackAlbumArt} />
+                    <Image
+                      source={{ uri: track.albumArt }}
+                      style={styles.trackAlbumArt}
+                    />
                     <View style={styles.trackInfo}>
-                      <Text style={styles.trackTitle} numberOfLines={1}>{track.title}</Text>
+                      <Text style={styles.trackTitle} numberOfLines={1}>
+                        {track.title}
+                      </Text>
                       <Text style={styles.trackArtist} numberOfLines={1}>
                         {track.artist} • {formatDuration(track.duration)}
                       </Text>
                     </View>
-                    <View style={[
-                      styles.trackCheckbox,
-                      selectedTracks.some(t => t.id === track.id) && styles.trackCheckboxSelected
-                    ]}>
-                      {selectedTracks.some(t => t.id === track.id) && (
-                        <Ionicons name="checkmark" size={16} color={Colors.background} />
+                    <View
+                      style={[
+                        styles.trackCheckbox,
+                        selectedTracks.some((t) => t.id === track.id) &&
+                          styles.trackCheckboxSelected,
+                      ]}
+                    >
+                      {selectedTracks.some((t) => t.id === track.id) && (
+                        <Ionicons
+                          name="checkmark"
+                          size={16}
+                          color={Colors.background}
+                        />
                       )}
                     </View>
                   </View>
@@ -565,18 +638,32 @@ export default function PlaylistBuilderScreen() {
             <View style={styles.footerContent}>
               <View style={styles.footerStats}>
                 <View style={styles.statItem}>
-                  <MaterialIcons name="queue-music" size={16} color={Colors.textSecondary} />
-                  <Text style={styles.statText}>{selectedTracks.length} tracks</Text>
+                  <MaterialIcons
+                    name="queue-music"
+                    size={16}
+                    color={Colors.textSecondary}
+                  />
+                  <Text style={styles.statText}>
+                    {selectedTracks.length} tracks
+                  </Text>
                 </View>
                 <View style={styles.statDivider} />
                 <View style={styles.statItem}>
-                  <MaterialIcons name="schedule" size={16} color={Colors.textSecondary} />
+                  <MaterialIcons
+                    name="schedule"
+                    size={16}
+                    color={Colors.textSecondary}
+                  />
                   <Text style={styles.statText}>
-                    {Math.floor(selectedTracks.reduce((sum, t) => sum + t.duration, 0) / 60)} min
+                    {Math.floor(
+                      selectedTracks.reduce((sum, t) => sum + t.duration, 0) /
+                        60
+                    )}{" "}
+                    min
                   </Text>
                 </View>
               </View>
-              
+
               <TouchableOpacity
                 style={styles.createButton}
                 onPress={savePlaylist}
@@ -593,8 +680,14 @@ export default function PlaylistBuilderScreen() {
                     <ActivityIndicator size="small" color={Colors.background} />
                   ) : (
                     <>
-                      <MaterialIcons name="check-circle" size={20} color={Colors.background} />
-                      <Text style={styles.createButtonText}>Create Playlist</Text>
+                      <MaterialIcons
+                        name="check-circle"
+                        size={20}
+                        color={Colors.background}
+                      />
+                      <Text style={styles.createButtonText}>
+                        Create Playlist
+                      </Text>
                     </>
                   )}
                 </LinearGradient>
@@ -614,17 +707,17 @@ const styles = StyleSheet.create({
   },
   headerContainer: {
     height: 280,
-    position: 'relative',
+    position: "relative",
   },
   headerBackgroundImage: {
-    position: 'absolute',
-    width: '100%',
-    height: '100%',
-    resizeMode: 'cover',
+    position: "absolute",
+    width: "100%",
+    height: "100%",
+    resizeMode: "cover",
   },
   headerGradient: {
     flex: 1,
-    justifyContent: 'flex-end',
+    justifyContent: "flex-end",
   },
   headerContent: {
     paddingHorizontal: 20,
@@ -638,26 +731,25 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
+    justifyContent: "center",
+    alignItems: "center",
+    overflow: "hidden",
   },
-  headerTextContainer: {
-  },
+  headerTextContainer: {},
   headerLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.primary,
     letterSpacing: 1,
     marginBottom: 8,
   },
   playlistNameContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   playlistName: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     flex: 1,
   },
@@ -666,7 +758,7 @@ const styles = StyleSheet.create({
   },
   playlistNameInput: {
     fontSize: 32,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     padding: 0,
     borderBottomWidth: 2,
@@ -674,8 +766,8 @@ const styles = StyleSheet.create({
   },
   loadingContainer: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     backgroundColor: Colors.background,
   },
   loadingText: {
@@ -689,16 +781,16 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 16,
   },
   seedTrackCard: {
     backgroundColor: Colors.surface,
     borderRadius: 16,
     padding: 16,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
   },
   seedAlbumArt: {
     width: 80,
@@ -711,7 +803,7 @@ const styles = StyleSheet.create({
   },
   seedTrackTitle: {
     fontSize: 18,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     marginBottom: 4,
   },
@@ -721,7 +813,7 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   miniFeatures: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 16,
   },
   miniFeature: {
@@ -741,7 +833,7 @@ const styles = StyleSheet.create({
   miniFeatureLabel: {
     fontSize: 10,
     color: Colors.textTertiary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   customizationSection: {
@@ -750,7 +842,7 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginLeft: 8,
   },
@@ -760,30 +852,30 @@ const styles = StyleSheet.create({
   },
   parameterCard: {
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   parameterGradient: {
     padding: 16,
   },
   parameterHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   parameterTitle: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginLeft: 6,
     flex: 1,
   },
   parameterValue: {
     fontSize: 14,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
   },
   parameterSlider: {
-    width: '100%',
+    width: "100%",
     height: 30,
   },
   trackCountCard: {
@@ -792,18 +884,18 @@ const styles = StyleSheet.create({
     padding: 16,
   },
   trackCountHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     marginBottom: 12,
   },
   trackCountLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginLeft: 6,
   },
   trackCountOptions: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 8,
   },
   trackCountOption: {
@@ -811,14 +903,14 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     backgroundColor: Colors.surfaceLight,
-    alignItems: 'center',
+    alignItems: "center",
   },
   trackCountOptionActive: {
     backgroundColor: Colors.primary,
   },
   trackCountText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.textSecondary,
   },
   trackCountTextActive: {
@@ -832,9 +924,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   selectionInfo: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginTop: 12,
   },
   selectedCount: {
@@ -850,11 +942,11 @@ const styles = StyleSheet.create({
   selectAllText: {
     fontSize: 13,
     color: Colors.primary,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   sliderLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
   },
   sliderLabelText: {
     fontSize: 11,
@@ -863,29 +955,29 @@ const styles = StyleSheet.create({
   regenerateButton: {
     marginTop: 16,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   regenerateGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
     gap: 8,
   },
   regenerateText: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
   },
   generatingContainer: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 60,
   },
   generatingText: {
     marginTop: 16,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
   },
   generatingSubtext: {
@@ -894,14 +986,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 60,
   },
   emptyStateText: {
     marginTop: 12,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
   },
   emptyStateSubtext: {
@@ -915,24 +1007,24 @@ const styles = StyleSheet.create({
   trackItem: {
     backgroundColor: Colors.surface,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderWidth: 2,
-    borderColor: 'transparent',
+    borderColor: "transparent",
   },
   trackItemSelected: {
     borderColor: Colors.primary,
     backgroundColor: Colors.surfaceLight,
   },
   trackItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 12,
   },
   trackNumber: {
     width: 24,
     fontSize: 14,
     color: Colors.textTertiary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   trackAlbumArt: {
     width: 48,
@@ -945,7 +1037,7 @@ const styles = StyleSheet.create({
   },
   trackTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 3,
   },
@@ -959,8 +1051,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: Colors.border,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginLeft: 8,
   },
   trackCheckboxSelected: {
@@ -968,7 +1060,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.primary,
   },
   fixedFooter: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 0,
     left: 0,
     right: 0,
@@ -983,14 +1075,14 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   footerStats: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 16,
   },
   statItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
   },
   statText: {
@@ -1004,18 +1096,18 @@ const styles = StyleSheet.create({
   },
   createButton: {
     borderRadius: 25,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   createButtonGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     paddingVertical: 14,
     gap: 8,
   },
   createButtonText: {
     fontSize: 16,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.background,
   },
 });

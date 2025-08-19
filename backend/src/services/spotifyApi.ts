@@ -156,20 +156,14 @@ class SpotifyApiService {
     try {
       const api = this.createApiInstance(accessToken);
 
-      // Get the user's Spotify ID
-      const userProfile = await api.getMe();
-      const spotifyUserId = userProfile.body.id;
-
-      // Create the playlist
-      const playlistData = await (api.createPlaylist as any)(
-        spotifyUserId,
-        name,
-        {
-          description,
-          public: false,
-        }
-      );
-      const playlist = (playlistData as any).body;
+      // Create the playlist for the current user
+      const playlistData = await api.createPlaylist(name, {
+        description: description,
+        public: false,
+        collaborative: false
+      });
+      
+      const playlist = playlistData.body;
 
       // Add tracks to the playlist
       if (trackIds.length > 0) {
@@ -180,6 +174,16 @@ class SpotifyApiService {
       return playlist;
     } catch (error) {
       console.error("Create playlist error:", error);
+      // Log more detailed error info
+      if ((error as any).response) {
+        console.error("Error response:", (error as any).response.body);
+      }
+      if ((error as any).body) {
+        console.error("Error body:", (error as any).body);
+      }
+      if ((error as any).statusCode) {
+        console.error("Error status:", (error as any).statusCode);
+      }
       throw new Error("Failed to create Spotify playlist");
     }
   }

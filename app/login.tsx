@@ -4,19 +4,21 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Image,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
-import { Ionicons } from "@expo/vector-icons";
+import { MaterialIcons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../constants/Colors";
 
 WebBrowser.maybeCompleteAuthSession();
+
+const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // Using ngrok URL for Spotify OAuth callback support
 const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
@@ -122,121 +124,127 @@ export default function LoginScreen() {
   };
 
   return (
-    <LinearGradient
-      colors={["#1DB954", "#121212"] as any}
-      style={styles.container}
-      start={{ x: 0, y: 0 }}
-      end={{ x: 0, y: 1 }}
-    >
+    <View style={styles.container}>
+      {/* Subtle gradient background */}
+      <LinearGradient
+        colors={[Colors.background, "rgba(29, 185, 84, 0.02)", Colors.background]}
+        style={StyleSheet.absoluteFillObject}
+      />
+
       <View style={styles.content}>
-        <View style={styles.logoContainer}>
-          <Ionicons name="musical-notes" size={80} color={Colors.text} />
+        {/* Logo Section */}
+        <View style={styles.logoSection}>
+          <View style={styles.logoContainer}>
+            <LinearGradient
+              colors={Colors.gradients.green as any}
+              style={styles.logoBackground}
+            >
+              <MaterialIcons name="library-music" size={40} color={Colors.background} />
+            </LinearGradient>
+          </View>
+          
           <Text style={styles.appName}>SpotYme</Text>
-          <Text style={styles.tagline}>Your AI-Powered Playlist Creator</Text>
+          <Text style={styles.tagline}>Your AI music companion</Text>
         </View>
 
-        <View style={styles.featuresContainer}>
-          <View style={styles.feature}>
-            <Ionicons name="search" size={24} color={Colors.primary} />
-            <Text style={styles.featureText}>Discover new music</Text>
-          </View>
-          <View style={styles.feature}>
-            <Ionicons name="analytics" size={24} color={Colors.primary} />
-            <Text style={styles.featureText}>Smart recommendations</Text>
-          </View>
-          <View style={styles.feature}>
-            <Ionicons name="list" size={24} color={Colors.primary} />
-            <Text style={styles.featureText}>Create perfect playlists</Text>
-          </View>
+        {/* Login Button */}
+        <View style={styles.ctaSection}>
+          <TouchableOpacity
+            style={styles.loginButton}
+            onPress={handleSpotifyLogin}
+            disabled={isLoading}
+            activeOpacity={0.8}
+          >
+            <LinearGradient
+              colors={isLoading ? [Colors.surface, Colors.surface] : (Colors.gradients.green as any)}
+              style={styles.loginButtonGradient}
+              start={{ x: 0, y: 0 }}
+              end={{ x: 1, y: 0 }}
+            >
+              {isLoading ? (
+                <ActivityIndicator size="small" color={Colors.text} />
+              ) : (
+                <>
+                  <MaterialIcons name="music-note" size={20} color={Colors.background} />
+                  <Text style={styles.loginButtonText}>Continue with Spotify</Text>
+                </>
+              )}
+            </LinearGradient>
+          </TouchableOpacity>
+
+          <Text style={styles.disclaimer}>
+            Secure login via Spotify
+          </Text>
         </View>
-
-        <TouchableOpacity
-          style={[styles.loginButton, isLoading && styles.loginButtonDisabled]}
-          onPress={handleSpotifyLogin}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <ActivityIndicator color={Colors.background} />
-          ) : (
-            <>
-              <Ionicons
-                name="musical-note"
-                size={24}
-                color={Colors.background}
-              />
-              <Text style={styles.loginButtonText}>Connect with Spotify</Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <Text style={styles.disclaimer}>
-          We'll need access to your Spotify account to create playlists
-        </Text>
       </View>
-    </LinearGradient>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: Colors.background,
   },
   content: {
     flex: 1,
     justifyContent: "center",
+    paddingHorizontal: 24,
+  },
+  
+  // Logo Section
+  logoSection: {
     alignItems: "center",
-    padding: 20,
+    marginBottom: 80,
   },
   logoContainer: {
-    alignItems: "center",
-    marginBottom: 60,
-  },
-  appName: {
-    fontSize: 48,
-    fontWeight: "bold",
-    color: Colors.text,
-    marginTop: 20,
-  },
-  tagline: {
-    fontSize: 18,
-    color: Colors.textSecondary,
-    marginTop: 8,
-  },
-  featuresContainer: {
-    marginBottom: 60,
-  },
-  feature: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginVertical: 10,
-  },
-  featureText: {
-    fontSize: 16,
-    color: Colors.text,
-    marginLeft: 12,
-  },
-  loginButton: {
-    backgroundColor: Colors.primary,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 32,
-    paddingVertical: 16,
-    borderRadius: 30,
     marginBottom: 20,
   },
-  loginButtonDisabled: {
-    opacity: 0.7,
+  logoBackground: {
+    width: 80,
+    height: 80,
+    borderRadius: 24,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  appName: {
+    fontSize: 42,
+    fontWeight: "bold",
+    color: Colors.text,
+    marginBottom: 8,
+    letterSpacing: -0.5,
+  },
+  tagline: {
+    fontSize: 15,
+    color: Colors.textSecondary,
+  },
+  
+  // CTA Section
+  ctaSection: {
+    alignItems: "center",
+  },
+  loginButton: {
+    width: "100%",
+    maxWidth: 320,
+    borderRadius: 24,
+    overflow: "hidden",
+  },
+  loginButtonGradient: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    gap: 8,
   },
   loginButtonText: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "600",
     color: Colors.background,
-    marginLeft: 10,
   },
   disclaimer: {
     fontSize: 12,
-    color: Colors.textSecondary,
-    textAlign: "center",
-    paddingHorizontal: 40,
+    color: Colors.textTertiary,
+    marginTop: 16,
   },
 });
