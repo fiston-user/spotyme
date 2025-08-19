@@ -18,6 +18,9 @@ import { SearchBar } from '../../components/ui/SearchBar';
 import { Card } from '../../components/ui/Card';
 import { apiService } from '../../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
+import { TrackCarousel } from '../../components/TrackCarousel';
+import { ArtistCarousel } from '../../components/ArtistCarousel';
+import { FeaturedSection } from '../../components/FeaturedSection';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -28,6 +31,14 @@ export default function SearchScreen() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
+  
+  // Recommendation states
+  const [topTracks, setTopTracks] = useState<any[]>([]);
+  const [topArtists, setTopArtists] = useState<any[]>([]);
+  const [featuredPlaylists, setFeaturedPlaylists] = useState<any[]>([]);
+  const [newReleases, setNewReleases] = useState<any[]>([]);
+  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
+  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
 
   // Transform Spotify track data to our Song interface
   const transformSpotifyTrack = (track: any): Song => {
@@ -106,6 +117,77 @@ export default function SearchScreen() {
     // Navigate directly to playlist builder when song is clicked
     router.push(`/playlist-builder/${song.id}`);
   };
+
+  const handleTrackPress = (track: any) => {
+    // Navigate to playlist builder with track ID
+    router.push(`/playlist-builder/${track.id}`);
+  };
+
+  const handleArtistPress = (artist: any) => {
+    // Search for artist's songs
+    setSearchQuery(artist.name);
+  };
+
+  const handlePlaylistPress = (playlist: any) => {
+    // Could navigate to a playlist detail view or search for similar
+    Alert.alert('Featured Playlist', `${playlist.name}\n${playlist.description || 'Curated by Spotify'}`);
+  };
+
+  const handleAlbumPress = (album: any) => {
+    // Search for album
+    const query = `${album.name} ${album.artists?.[0]?.name || ''}`;
+    setSearchQuery(query);
+  };
+
+  // Load recommendations when component mounts
+  const loadRecommendations = async () => {
+    setRecommendationsLoading(true);
+    setRecommendationsError(null);
+
+    try {
+      // Fetch all recommendations in parallel
+      const [tracksRes, artistsRes, featuredRes, releasesRes] = await Promise.all([
+        apiService.getTopTracks('short_term', 10).catch(err => ({ success: false, error: err })),
+        apiService.getTopArtists('short_term', 10).catch(err => ({ success: false, error: err })),
+        apiService.getFeaturedContent('US', 10).catch(err => ({ success: false, error: err })),
+        apiService.getNewReleases('US', 10).catch(err => ({ success: false, error: err })),
+      ]);
+
+      // Set data even if some requests fail
+      if (tracksRes.success && tracksRes.data?.items) {
+        setTopTracks(tracksRes.data.items);
+      } else {
+        console.log('Failed to load top tracks');
+      }
+
+      if (artistsRes.success && artistsRes.data?.items) {
+        setTopArtists(artistsRes.data.items);
+      } else {
+        console.log('Failed to load top artists');
+      }
+
+      if (featuredRes.success && featuredRes.data?.playlists?.items && featuredRes.data.playlists.items.length > 0) {
+        setFeaturedPlaylists(featuredRes.data.playlists.items);
+      } else {
+        console.log('Failed to load featured playlists or no playlists available');
+      }
+
+      if (releasesRes.success && releasesRes.data?.albums?.items && releasesRes.data.albums.items.length > 0) {
+        setNewReleases(releasesRes.data.albums.items);
+      } else {
+        console.log('Failed to load new releases or no releases available');
+      }
+    } catch (err) {
+      console.error('Failed to load recommendations:', err);
+      setRecommendationsError('Failed to load recommendations');
+    } finally {
+      setRecommendationsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRecommendations();
+  }, []);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -252,35 +334,112 @@ export default function SearchScreen() {
             </Text>
           </View>
         ) : !searchQuery.trim() ? (
-          <View style={styles.welcomeState}>
-            <View style={styles.welcomeCard}>
-              <LinearGradient
-                colors={Colors.gradients.blue as any}
-                style={styles.welcomeGradient}
-              >
-                <MaterialIcons name="library-music" size={48} color={Colors.text} />
-                <Text style={styles.welcomeTitle}>Start Searching</Text>
-                <Text style={styles.welcomeText}>
-                  Type to search millions of tracks on Spotify
-                </Text>
-              </LinearGradient>
-            </View>
-            
-            <View style={styles.tipsSection}>
-              <Text style={styles.tipsTitle}>Search Tips</Text>
-              <View style={styles.tipCard}>
-                <MaterialIcons name="lightbulb" size={16} color={Colors.primary} />
-                <Text style={styles.tipText}>Tap any song to create a playlist based on it</Text>
+          <View style={styles.recommendationsContainer}>
+            {recommendationsLoading ? (
+              <View style={styles.recommendationsLoadingContainer}>
+                <ActivityIndicator size="large" color={Colors.primary} />
+                <Text style={styles.loadingText}>Loading personalized recommendations...</Text>
               </View>
-              <View style={styles.tipCard}>
-                <MaterialIcons name="music-note" size={16} color={Colors.primary} />
-                <Text style={styles.tipText}>Search by song title, artist, or album name</Text>
+            ) : recommendationsError ? (
+              <View style={styles.welcomeState}>
+                <View style={styles.welcomeCard}>
+                  <LinearGradient
+                    colors={Colors.gradients.blue as any}
+                    style={styles.welcomeGradient}
+                  >
+                    <MaterialIcons name="library-music" size={48} color={Colors.text} />
+                    <Text style={styles.welcomeTitle}>Start Searching</Text>
+                    <Text style={styles.welcomeText}>
+                      Type to search millions of tracks on Spotify
+                    </Text>
+                  </LinearGradient>
+                </View>
+                
+                <View style={styles.tipsSection}>
+                  <Text style={styles.tipsTitle}>Search Tips</Text>
+                  <View style={styles.tipCard}>
+                    <MaterialIcons name="lightbulb" size={16} color={Colors.primary} />
+                    <Text style={styles.tipText}>Tap any song to create a playlist based on it</Text>
+                  </View>
+                  <View style={styles.tipCard}>
+                    <MaterialIcons name="music-note" size={16} color={Colors.primary} />
+                    <Text style={styles.tipText}>Search by song title, artist, or album name</Text>
+                  </View>
+                  <View style={styles.tipCard}>
+                    <MaterialIcons name="trending-up" size={16} color={Colors.primary} />
+                    <Text style={styles.tipText}>Use genre chips above for quick searches</Text>
+                  </View>
+                </View>
               </View>
-              <View style={styles.tipCard}>
-                <MaterialIcons name="trending-up" size={16} color={Colors.primary} />
-                <Text style={styles.tipText}>Use genre chips above for quick searches</Text>
-              </View>
-            </View>
+            ) : (
+              <>
+                {/* Refresh button */}
+                <TouchableOpacity
+                  style={styles.refreshButton}
+                  onPress={loadRecommendations}
+                  activeOpacity={0.7}
+                >
+                  <MaterialIcons name="refresh" size={20} color={Colors.textSecondary} />
+                  <Text style={styles.refreshText}>Refresh</Text>
+                </TouchableOpacity>
+
+                {topTracks.length > 0 && (
+                  <TrackCarousel
+                    title="Your Top Tracks"
+                    tracks={topTracks}
+                    onTrackPress={handleTrackPress}
+                    showSeeAll={false}
+                  />
+                )}
+
+                {topArtists.length > 0 && (
+                  <ArtistCarousel
+                    title="Recommended Artists"
+                    artists={topArtists}
+                    onArtistPress={handleArtistPress}
+                    showSeeAll={false}
+                  />
+                )}
+
+                {featuredPlaylists.length > 0 && (
+                  <FeaturedSection
+                    title="Featured Playlists"
+                    items={featuredPlaylists}
+                    type="playlist"
+                    onItemPress={handlePlaylistPress}
+                    showSeeAll={false}
+                    gradientColors={Colors.gradients.purple}
+                  />
+                )}
+
+                {newReleases.length > 0 && (
+                  <FeaturedSection
+                    title="New Releases"
+                    items={newReleases}
+                    type="album"
+                    onItemPress={handleAlbumPress}
+                    showSeeAll={false}
+                    gradientColors={Colors.gradients.orange}
+                  />
+                )}
+
+                {/* Fallback to tips if no recommendations available */}
+                {topTracks.length === 0 && topArtists.length === 0 && 
+                 featuredPlaylists.length === 0 && newReleases.length === 0 && (
+                  <View style={styles.tipsSection}>
+                    <Text style={styles.tipsTitle}>Get Started</Text>
+                    <View style={styles.tipCard}>
+                      <MaterialIcons name="search" size={16} color={Colors.primary} />
+                      <Text style={styles.tipText}>Search for your favorite songs</Text>
+                    </View>
+                    <View style={styles.tipCard}>
+                      <MaterialIcons name="playlist-add" size={16} color={Colors.primary} />
+                      <Text style={styles.tipText}>Create playlists from any track</Text>
+                    </View>
+                  </View>
+                )}
+              </>
+            )}
           </View>
         ) : null}
       </ScrollView>
@@ -528,5 +687,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     lineHeight: 20,
+  },
+  recommendationsContainer: {
+    flex: 1,
+    paddingTop: 8,
+  },
+  recommendationsLoadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingTop: 60,
+  },
+  refreshButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-end',
+    marginRight: 20,
+    marginBottom: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    gap: 6,
+  },
+  refreshText: {
+    fontSize: 13,
+    color: Colors.textSecondary,
   },
 });

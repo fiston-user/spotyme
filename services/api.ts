@@ -137,7 +137,7 @@ class ApiService {
   async getTopTracks(timeRange = "medium_term", limit = 20) {
     try {
       const response = await fetch(
-        `${API_BASE_URL}/api/spotify/top-tracks?time_range=${timeRange}&limit=${limit}`,
+        `${API_BASE_URL}/api/spotify/me/top/tracks?time_range=${timeRange}&limit=${limit}`,
         {
           method: "GET",
           headers: await this.getAuthHeaders(),
@@ -148,6 +148,60 @@ class ApiService {
       return {
         success: false,
         error: "Failed to fetch top tracks",
+      };
+    }
+  }
+
+  async getTopArtists(timeRange = "medium_term", limit = 20) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/me/top/artists?time_range=${timeRange}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch top artists",
+      };
+    }
+  }
+
+  async getFeaturedContent(country = "US", limit = 20) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/featured?country=${country}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch featured content",
+      };
+    }
+  }
+
+  async getNewReleases(country = "US", limit = 20) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/new-releases?country=${country}&limit=${limit}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch new releases",
       };
     }
   }

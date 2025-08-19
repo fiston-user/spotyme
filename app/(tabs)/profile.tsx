@@ -185,7 +185,7 @@ export default function ProfileScreen() {
         <View style={styles.headerContent}>
           <View style={styles.headerTop}>
             <Text style={styles.headerLabel}>ACCOUNT</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={styles.headerAction}
               onPress={loadProfile}
               activeOpacity={0.7}
@@ -194,17 +194,21 @@ export default function ProfileScreen() {
             </TouchableOpacity>
           </View>
           <Text style={styles.headerTitle}>Profile</Text>
-          
+
           {/* Profile Info Section */}
           <View style={styles.profileSection}>
             {profile?.imageUrl ? (
               <Image source={{ uri: profile.imageUrl }} style={styles.avatar} />
             ) : (
               <View style={styles.avatarPlaceholder}>
-                <MaterialIcons name="person" size={40} color={Colors.textSecondary} />
+                <MaterialIcons
+                  name="person"
+                  size={40}
+                  color={Colors.textSecondary}
+                />
               </View>
             )}
-            
+
             <View style={styles.profileInfo}>
               <Text style={styles.name}>
                 {profile?.displayName || "Spotify User"}
@@ -212,7 +216,11 @@ export default function ProfileScreen() {
               <Text style={styles.email}>{profile?.email || ""}</Text>
               {profile?.createdAt && (
                 <View style={styles.joinDateRow}>
-                  <MaterialIcons name="calendar-today" size={12} color={Colors.textSecondary} />
+                  <MaterialIcons
+                    name="calendar-today"
+                    size={12}
+                    color={Colors.textSecondary}
+                  />
                   <Text style={styles.joinDate}>
                     Member since {formatDate(profile.createdAt)}
                   </Text>
@@ -235,17 +243,20 @@ export default function ProfileScreen() {
         }
         contentContainerStyle={styles.scrollContent}
       >
-
         {/* Enhanced Stats Section */}
         <View style={styles.statsSection}>
           <Text style={styles.statsTitle}>Your Activity</Text>
           <View style={styles.statsGrid}>
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['rgba(29, 185, 84, 0.1)', 'rgba(30, 215, 96, 0.05)']}
+                colors={["rgba(29, 185, 84, 0.1)", "rgba(30, 215, 96, 0.05)"]}
                 style={styles.statGradient}
               >
-                <MaterialIcons name="library-music" size={28} color={Colors.primary} />
+                <MaterialIcons
+                  name="library-music"
+                  size={28}
+                  color={Colors.primary}
+                />
                 <Text style={styles.statNumber}>{stats.totalPlaylists}</Text>
                 <Text style={styles.statLabel}>Playlists</Text>
               </LinearGradient>
@@ -253,7 +264,7 @@ export default function ProfileScreen() {
 
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['rgba(69, 10, 245, 0.1)', 'rgba(192, 116, 178, 0.05)']}
+                colors={["rgba(69, 10, 245, 0.1)", "rgba(192, 116, 178, 0.05)"]}
                 style={styles.statGradient}
               >
                 <MaterialIcons name="queue-music" size={28} color="#8B5CF6" />
@@ -264,7 +275,7 @@ export default function ProfileScreen() {
 
             <View style={styles.statCard}>
               <LinearGradient
-                colors={['rgba(255, 107, 0, 0.1)', 'rgba(255, 165, 0, 0.05)']}
+                colors={["rgba(255, 107, 0, 0.1)", "rgba(255, 165, 0, 0.05)"]}
                 style={styles.statGradient}
               >
                 <MaterialIcons name="schedule" size={28} color="#FFA500" />
@@ -317,7 +328,11 @@ export default function ProfileScreen() {
               colors={Colors.gradients.purple as any}
               style={styles.actionIcon}
             >
-              <MaterialIcons name="library-music" size={22} color={Colors.background} />
+              <MaterialIcons
+                name="library-music"
+                size={22}
+                color={Colors.text}
+              />
             </LinearGradient>
             <View style={styles.actionContent}>
               <Text style={styles.actionTitle}>My Playlists</Text>
@@ -336,17 +351,29 @@ export default function ProfileScreen() {
         {/* Enhanced Settings Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <MaterialIcons name="settings" size={20} color={Colors.textSecondary} />
+            <MaterialIcons
+              name="settings"
+              size={20}
+              color={Colors.textSecondary}
+            />
             <Text style={styles.sectionTitle}>Settings</Text>
           </View>
 
           <View style={styles.settingsGroup}>
             <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
               <View style={styles.settingIconContainer}>
-                <MaterialIcons name="notifications" size={22} color={Colors.text} />
+                <MaterialIcons
+                  name="notifications"
+                  size={22}
+                  color={Colors.text}
+                />
               </View>
               <Text style={styles.settingText}>Notifications</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.textTertiary}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
@@ -354,7 +381,11 @@ export default function ProfileScreen() {
                 <MaterialIcons name="lock" size={22} color={Colors.text} />
               </View>
               <Text style={styles.settingText}>Privacy & Security</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.textTertiary}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
@@ -362,7 +393,11 @@ export default function ProfileScreen() {
                 <MaterialIcons name="help" size={22} color={Colors.text} />
               </View>
               <Text style={styles.settingText}>Help & Support</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.textTertiary}
+              />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.settingItem} activeOpacity={0.7}>
@@ -370,19 +405,23 @@ export default function ProfileScreen() {
                 <MaterialIcons name="info" size={22} color={Colors.text} />
               </View>
               <Text style={styles.settingText}>About</Text>
-              <MaterialIcons name="chevron-right" size={20} color={Colors.textTertiary} />
+              <MaterialIcons
+                name="chevron-right"
+                size={20}
+                color={Colors.textTertiary}
+              />
             </TouchableOpacity>
           </View>
         </View>
 
         {/* Enhanced Logout Button */}
-        <TouchableOpacity 
-          style={styles.logoutButton} 
+        <TouchableOpacity
+          style={styles.logoutButton}
           onPress={handleLogout}
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['rgba(226, 33, 52, 0.1)', 'rgba(226, 33, 52, 0.05)']}
+            colors={["rgba(226, 33, 52, 0.1)", "rgba(226, 33, 52, 0.05)"]}
             style={styles.logoutGradient}
           >
             <MaterialIcons name="logout" size={22} color={Colors.danger} />
@@ -398,7 +437,11 @@ export default function ProfileScreen() {
           </View>
           {profile?.spotifyId && (
             <View style={styles.footerConnection}>
-              <MaterialIcons name="check-circle" size={14} color={Colors.primary} />
+              <MaterialIcons
+                name="check-circle"
+                size={14}
+                color={Colors.primary}
+              />
               <Text style={styles.footerConnectionText}>
                 Connected • {profile.spotifyId.substring(0, 10)}...
               </Text>
@@ -462,14 +505,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   headerTop: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 8,
   },
   headerLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.textSecondary,
     letterSpacing: 1,
   },
@@ -478,13 +521,13 @@ const styles = StyleSheet.create({
   },
   headerTitle: {
     fontSize: 36,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     marginBottom: 20,
   },
   profileSection: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 16,
   },
   profileInfo: {
@@ -519,8 +562,8 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   joinDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
   },
   joinDate: {
@@ -534,26 +577,26 @@ const styles = StyleSheet.create({
   },
   statsTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 12,
   },
   statsGrid: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   statCard: {
     flex: 1,
     borderRadius: 16,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   statGradient: {
     padding: 16,
-    alignItems: 'center',
+    alignItems: "center",
   },
   statNumber: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     marginTop: 8,
     marginBottom: 4,
@@ -561,7 +604,7 @@ const styles = StyleSheet.create({
   statLabel: {
     fontSize: 11,
     color: Colors.textSecondary,
-    textTransform: 'uppercase',
+    textTransform: "uppercase",
     letterSpacing: 0.5,
   },
   section: {
@@ -569,19 +612,19 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 8,
     marginBottom: 16,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
   },
   actionCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.surface,
     padding: 16,
     borderRadius: 12,
@@ -591,8 +634,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
     marginRight: 12,
   },
   actionContent: {
@@ -600,7 +643,7 @@ const styles = StyleSheet.create({
   },
   actionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 2,
   },
@@ -611,11 +654,11 @@ const styles = StyleSheet.create({
   settingsGroup: {
     backgroundColor: Colors.surface,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   settingItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderBottomWidth: 1,
     borderBottomColor: Colors.border,
@@ -633,33 +676,33 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginVertical: 12,
     borderRadius: 12,
-    overflow: 'hidden',
+    overflow: "hidden",
   },
   logoutGradient: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     padding: 16,
     gap: 8,
   },
   logoutText: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.danger,
   },
   footer: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 32,
     paddingBottom: 20,
   },
   footerInfo: {
-    alignItems: 'center',
+    alignItems: "center",
     marginBottom: 12,
   },
   footerTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 4,
   },
@@ -668,8 +711,8 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
   },
   footerConnection: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,

@@ -16,14 +16,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
 import { Song } from "../../constants/MockData";
-import { SongCard } from "../../components/SongCard";
-import { Button } from "../../components/ui/Button";
-import { Card } from "../../components/ui/Card";
 import Slider from "@react-native-community/slider";
 import { apiService } from "../../services/api";
 import { BlurView } from "expo-blur";
-
-const { width: screenWidth } = Dimensions.get("window");
 
 const formatDuration = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -50,7 +45,11 @@ export default function PlaylistBuilderScreen() {
   const [trackCount, setTrackCount] = useState(20);
 
   // Audio features of seed track
-  const [audioFeatures, setAudioFeatures] = useState<any>(null);
+  const [audioFeatures, setAudioFeatures] = useState<{
+    energy?: number;
+    valence?: number;
+    [key: string]: any;
+  } | null>(null);
 
   // Transform Spotify track to Song interface
   const transformSpotifyTrack = (track: any): Song => {
@@ -151,7 +150,7 @@ export default function PlaylistBuilderScreen() {
       );
 
       if (response.success && response.data) {
-        const data = response.data;
+        const data = response.data as any;
         if (data.tracks && data.tracks.length > 0) {
           const transformedTracks = data.tracks.map(transformSpotifyTrack);
           setRecommendations(transformedTracks);
@@ -229,7 +228,7 @@ export default function PlaylistBuilderScreen() {
       });
 
       if (response.success && response.data) {
-        const playlist = response.data;
+        const playlist = response.data as any;
         Alert.alert("Success!", "Your playlist has been created", [
           {
             text: "View Playlist",
@@ -255,19 +254,13 @@ export default function PlaylistBuilderScreen() {
     }
   };
 
-  const exportToSpotify = async () => {
-    // This will be implemented after playlist is saved
-    Alert.alert(
-      "Coming Soon",
-      "Export to Spotify will be available after saving the playlist"
-    );
-  };
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading track details...</Text>
+        <Text style={styles.loadingText}>Analyzing track</Text>
+        <Text style={styles.loadingSubtext}>Just a moment...</Text>
       </View>
     );
   }
@@ -562,9 +555,11 @@ export default function PlaylistBuilderScreen() {
             <View style={styles.generatingContainer}>
               <ActivityIndicator size="large" color={Colors.primary} />
               <Text style={styles.generatingText}>
-                Discovering perfect matches...
+                Finding similar tracks
               </Text>
-              <Text style={styles.generatingSubtext}>This won't take long</Text>
+              <Text style={styles.generatingSubtext}>
+                Building your {trackCount} track playlist
+              </Text>
             </View>
           ) : recommendations.length === 0 ? (
             <View style={styles.emptyState}>
@@ -771,8 +766,14 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.background,
   },
   loadingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 20,
+    fontSize: 18,
+    fontWeight: "600",
+    color: Colors.text,
+  },
+  loadingSubtext: {
+    marginTop: 8,
+    fontSize: 14,
     color: Colors.textSecondary,
   },
   seedSection: {
@@ -975,13 +976,13 @@ const styles = StyleSheet.create({
     paddingVertical: 60,
   },
   generatingText: {
-    marginTop: 16,
-    fontSize: 16,
+    marginTop: 20,
+    fontSize: 18,
     fontWeight: "600",
     color: Colors.text,
   },
   generatingSubtext: {
-    marginTop: 4,
+    marginTop: 8,
     fontSize: 14,
     color: Colors.textSecondary,
   },

@@ -152,4 +152,36 @@ router.get('/me/top/:type', async (req, res, next) => {
   }
 });
 
+router.get('/featured', async (req, res, next) => {
+  try {
+    const { country = 'US', limit = 20 } = req.query;
+    
+    const featuredContent = await spotifyApiService.getFeaturedContent(
+      req.session.accessToken!,
+      country as string,
+      Number(limit)
+    );
+
+    return res.json(featuredContent);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.get('/new-releases', async (req, res, next) => {
+  try {
+    const { country = 'US', limit = 20 } = req.query;
+    
+    const newReleases = await spotifyApiService.getNewReleases(
+      req.session.accessToken!,
+      country as string,
+      Number(limit)
+    );
+
+    return res.json(newReleases);
+  } catch (error) {
+    return next(error);
+  }
+});
+
 export default router;

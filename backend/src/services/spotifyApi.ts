@@ -195,6 +195,96 @@ class SpotifyApiService {
       throw new Error("Failed to get playlist tracks");
     }
   }
+
+  async getFeaturedContent(
+    accessToken: string,
+    country: string,
+    limit: number
+  ): Promise<any> {
+    try {
+      const api = this.createApiInstance(accessToken);
+      
+      // Try to get user's playlists as featured content
+      try {
+        const userPlaylists = await api.getUserPlaylists({ limit });
+        
+        // Also try to get some category playlists
+        let categoryPlaylists: any[] = [];
+        try {
+          const categories = await api.getCategories({ limit: 3, country });
+          if (categories.body.categories.items.length > 0) {
+            const categoryId = categories.body.categories.items[0].id;
+            const catPlaylists = await api.getPlaylistsForCategory(categoryId, { limit: 5, country });
+            categoryPlaylists = catPlaylists.body.playlists.items;
+          }
+        } catch (catError) {
+          console.log("Categories not available, using user playlists only");
+        }
+        
+        return {
+          playlists: {
+            items: [...userPlaylists.body.items, ...categoryPlaylists].slice(0, limit)
+          },
+          message: "Your Music",
+        };
+      } catch (userError) {
+        console.log("User playlists not available, trying browse features");
+        
+        // Fallback: Try to get browse new releases as playlists
+        try {
+          const newReleases = await this.getNewReleases(accessToken, country, limit);
+          // Convert albums to playlist-like format
+          const playlistLikeItems = newReleases.albums?.items?.map((album: any) => ({
+            id: album.id,
+            name: album.name,
+            description: `Album by ${album.artists?.map((a: any) => a.name).join(', ')}`,
+            images: album.images,
+            owner: { display_name: album.artists?.[0]?.name || 'Artist' },
+            tracks: { total: album.total_tracks }
+          })) || [];
+          
+          return {
+            playlists: { items: playlistLikeItems },
+            message: "Discover New Music",
+          };
+        } catch (browseError) {
+          console.error("All featured content methods failed");
+          return {
+            playlists: { items: [] },
+            message: "Discover Music",
+          };
+        }
+      }
+    } catch (error) {
+      console.error("Get featured content error:", error);
+      // Return default content if API fails
+      return {
+        playlists: { items: [] },
+        message: "Discover Music",
+      };
+    }
+  }
+
+  async getNewReleases(
+    accessToken: string,
+    country: string,
+    limit: number
+  ): Promise<any> {
+    try {
+      const api = this.createApiInstance(accessToken);
+      const data = await api.getNewReleases({
+        limit,
+        country,
+      });
+      return data.body;
+    } catch (error) {
+      console.error("Get new releases error:", error);
+      // Return empty albums if API fails
+      return {
+        albums: { items: [] },
+      };
+    }
+  }
 }
 
 export const spotifyApiService = new SpotifyApiService();
