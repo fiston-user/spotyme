@@ -145,74 +145,219 @@ class AIRecommendationService {
   ): Promise<any> {
     try {
       const tracks = [];
-      
-      // Search for tracks by the same artist
       const artistName = seedTrack.artists[0].name;
-      const artistSearch = await spotifyApiService.search(
-        accessToken,
-        `artist:${artistName}`,
-        'track',
-        limit / 2
-      );
       
-      if (artistSearch.tracks?.items) {
-        // Filter out the seed track itself
-        const artistTracks = artistSearch.tracks.items.filter(
-          (t: any) => t.id !== seedTrack.id
+      // Strategy 1: Get more tracks by the same artist (30% of recommendations)
+      const artistLimit = Math.ceil(limit * 0.3);
+      try {
+        const artistSearch = await spotifyApiService.search(
+          accessToken,
+          `artist:"${artistName}"`,
+          'track',
+          artistLimit * 2 // Get more to filter
         );
-        tracks.push(...artistTracks.slice(0, limit / 2));
+        
+        if (artistSearch.tracks?.items) {
+          // Filter out the seed track and sort by popularity
+          const artistTracks = artistSearch.tracks.items
+            .filter((t: any) => t.id !== seedTrack.id)
+            .sort((a: any, b: any) => (b.popularity || 0) - (a.popularity || 0))
+            .slice(0, artistLimit);
+          tracks.push(...artistTracks);
+        }
+      } catch (err) {
+        console.log('Artist search failed:', err);
       }
 
-      // Search for tracks with similar characteristics
-      const genres = ['pop', 'rock', 'indie', 'electronic', 'hip-hop', 'r&b', 'alternative'];
-      const searchTerms = [];
+      // Strategy 2: Search for related artists (30% of recommendations)
+      const relatedLimit = Math.ceil(limit * 0.3);
+      try {
+        // Search for tracks that might be by related artists
+        const genreSearch = await this.getGenreBasedTracks(
+          accessToken,
+          seedTrack,
+          relatedLimit
+        );
+        tracks.push(...genreSearch);
+      } catch (err) {
+        console.log('Genre search failed:', err);
+      }
+
+      // Strategy 3: Mood-based search (40% of recommendations)
+      const moodLimit = Math.ceil(limit * 0.4);
+      const moodSearchTerms = this.buildMoodSearchTerms(targetEnergy, targetValence);
       
-      // Build search based on energy/mood
-      if (targetEnergy && targetEnergy > 0.7) {
-        searchTerms.push('upbeat', 'energetic', 'dance');
-      } else if (targetEnergy && targetEnergy < 0.3) {
-        searchTerms.push('chill', 'acoustic', 'calm');
-      }
-      
-      if (targetValence && targetValence > 0.7) {
-        searchTerms.push('happy', 'feel good');
-      } else if (targetValence && targetValence < 0.3) {
-        searchTerms.push('sad', 'melancholic');
-      }
-
-      // Add a random genre if no search terms
-      if (searchTerms.length === 0) {
-        searchTerms.push(genres[Math.floor(Math.random() * genres.length)]);
-      }
-
-      // Search with the terms
-      for (const term of searchTerms.slice(0, 2)) {
+      for (const term of moodSearchTerms.slice(0, 3)) {
         try {
-          const termSearch = await spotifyApiService.search(
+          const moodSearch = await spotifyApiService.search(
             accessToken,
             term,
             'track',
-            Math.ceil(limit / searchTerms.length)
+            Math.ceil(moodLimit / moodSearchTerms.length)
           );
           
-          if (termSearch.tracks?.items) {
-            tracks.push(...termSearch.tracks.items);
+          if (moodSearch.tracks?.items) {
+            // Filter for variety - avoid too many tracks from same artist
+            const diverseTracks = this.diversifyTracks(
+              moodSearch.tracks.items,
+              tracks
+            );
+            tracks.push(...diverseTracks);
           }
         } catch (searchError) {
-          console.log(`Search failed for term: ${term}`);
+          console.log(`Mood search failed for term: ${term}`);
         }
       }
 
-      // Remove duplicates and limit results
+      // Remove duplicates and ensure we have enough tracks
       const uniqueTracks = Array.from(
         new Map(tracks.map((t: any) => [t.id, t])).values()
-      ).slice(0, limit);
+      );
 
-      return { tracks: uniqueTracks, seeds: [] };
+      // If we don't have enough, add some popular tracks
+      if (uniqueTracks.length < limit) {
+        const needed = limit - uniqueTracks.length;
+        try {
+          const popularSearch = await spotifyApiService.search(
+            accessToken,
+            'year:2024',
+            'track',
+            needed
+          );
+          if (popularSearch.tracks?.items) {
+            uniqueTracks.push(...popularSearch.tracks.items.slice(0, needed));
+          }
+        } catch (err) {
+          console.log('Popular tracks fallback failed');
+        }
+      }
+
+      return { tracks: uniqueTracks.slice(0, limit), seeds: [] };
     } catch (error) {
       console.error('Search-based recommendation error:', error);
       throw error;
     }
+  }
+
+  private buildMoodSearchTerms(targetEnergy?: number, targetValence?: number): string[] {
+    const terms = [];
+    
+    // Energy-based terms
+    if (targetEnergy !== undefined) {
+      if (targetEnergy > 0.8) {
+        terms.push('energetic', 'upbeat', 'party', 'dance');
+      } else if (targetEnergy > 0.6) {
+        terms.push('groove', 'rhythm', 'beat');
+      } else if (targetEnergy > 0.4) {
+        terms.push('moderate', 'steady');
+      } else if (targetEnergy > 0.2) {
+        terms.push('mellow', 'smooth', 'laid back');
+      } else {
+        terms.push('ambient', 'chill', 'relaxing', 'calm');
+      }
+    }
+    
+    // Valence-based terms
+    if (targetValence !== undefined) {
+      if (targetValence > 0.8) {
+        terms.push('happy', 'joyful', 'uplifting');
+      } else if (targetValence > 0.6) {
+        terms.push('positive', 'feel good');
+      } else if (targetValence > 0.4) {
+        terms.push('neutral mood');
+      } else if (targetValence > 0.2) {
+        terms.push('emotional', 'introspective');
+      } else {
+        terms.push('melancholic', 'sad', 'moody');
+      }
+    }
+    
+    // Default terms if none specified
+    if (terms.length === 0) {
+      terms.push('popular', 'trending', 'hits');
+    }
+    
+    return terms;
+  }
+
+  private async getGenreBasedTracks(
+    accessToken: string,
+    seedTrack: any,
+    limit: number
+  ): Promise<any[]> {
+    const tracks = [];
+    
+    // Try to infer genre from track/artist name
+    const searchBase = seedTrack.name.toLowerCase();
+    const artistLower = seedTrack.artists[0].name.toLowerCase();
+    
+    let genreHints = [];
+    
+    // Simple genre detection based on common patterns
+    if (searchBase.includes('rock') || artistLower.includes('rock')) {
+      genreHints.push('rock', 'alternative');
+    } else if (searchBase.includes('pop') || artistLower.includes('pop')) {
+      genreHints.push('pop', 'top 40');
+    } else if (searchBase.includes('rap') || searchBase.includes('hip')) {
+      genreHints.push('hip hop', 'rap');
+    } else if (searchBase.includes('jazz')) {
+      genreHints.push('jazz', 'blues');
+    } else if (searchBase.includes('electro') || searchBase.includes('edm')) {
+      genreHints.push('electronic', 'dance');
+    } else if (searchBase.includes('country')) {
+      genreHints.push('country', 'folk');
+    } else if (searchBase.includes('classical')) {
+      genreHints.push('classical', 'instrumental');
+    } else {
+      // Default genres
+      genreHints = ['pop', 'rock', 'indie', 'alternative'];
+    }
+    
+    // Search for tracks in similar genres
+    for (const genre of genreHints.slice(0, 2)) {
+      try {
+        const genreSearch = await spotifyApiService.search(
+          accessToken,
+          `genre:"${genre}"`,
+          'track',
+          Math.ceil(limit / genreHints.length)
+        );
+        
+        if (genreSearch.tracks?.items) {
+          tracks.push(...genreSearch.tracks.items);
+        }
+      } catch (err) {
+        console.log(`Genre search failed for: ${genre}`);
+      }
+    }
+    
+    return tracks;
+  }
+
+  private diversifyTracks(newTracks: any[], existingTracks: any[]): any[] {
+    const artistCount = new Map();
+    
+    // Count existing artists
+    existingTracks.forEach(track => {
+      const artistId = track.artists?.[0]?.id;
+      if (artistId) {
+        artistCount.set(artistId, (artistCount.get(artistId) || 0) + 1);
+      }
+    });
+    
+    // Filter new tracks to avoid too many from same artist
+    const diverse = [];
+    for (const track of newTracks) {
+      const artistId = track.artists?.[0]?.id;
+      if (!artistId || (artistCount.get(artistId) || 0) < 3) {
+        diverse.push(track);
+        if (artistId) {
+          artistCount.set(artistId, (artistCount.get(artistId) || 0) + 1);
+        }
+      }
+    }
+    
+    return diverse;
   }
 
   private async getPopularTracks(accessToken: string, limit: number): Promise<any> {

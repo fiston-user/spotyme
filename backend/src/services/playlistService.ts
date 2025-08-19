@@ -66,7 +66,7 @@ class PlaylistService {
     options: GeneratePlaylistOptions
   ): Promise<IPlaylist> {
     try {
-      // Get recommendations from Spotify
+      // Get AI-based recommendations directly
       const recommendations = await spotifyApiService.getRecommendations(
         accessToken,
         seedTracks.join(","),
@@ -75,24 +75,12 @@ class PlaylistService {
         options.targetValence
       );
 
-      // Get audio features for seed tracks to understand user preference
-      const seedFeatures = await Promise.all(
-        seedTracks
-          .slice(0, 3)
-          .map((trackId) =>
-            spotifyApiService.getAudioFeatures(accessToken, trackId)
-          )
-      );
+      // Use provided values or defaults for energy/valence
+      // Default to moderate values if not specified
+      const targetEnergy = options.targetEnergy ?? 0.5;
+      const targetValence = options.targetValence ?? 0.5;
 
-      // Calculate average features from seed tracks
-      const avgEnergy =
-        seedFeatures.reduce((sum, f) => sum + f.energy, 0) /
-        seedFeatures.length;
-      const avgValence =
-        seedFeatures.reduce((sum, f) => sum + f.valence, 0) /
-        seedFeatures.length;
-
-      // Filter recommendations based on similarity to seed tracks
+      // Process recommendations into track format
       const tracks = recommendations.tracks.map((track: any) => ({
         spotifyId: track.id,
         name: track.name,
@@ -111,8 +99,8 @@ class PlaylistService {
         tracks,
         seedTracks,
         generationParams: {
-          targetEnergy: options.targetEnergy || avgEnergy,
-          targetValence: options.targetValence || avgValence,
+          targetEnergy: targetEnergy,
+          targetValence: targetValence,
           genres: options.genres || [],
         },
         totalDuration: tracks.reduce(

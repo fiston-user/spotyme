@@ -68,47 +68,41 @@ class SpotifyApiService {
     targetValence?: number
   ): Promise<any> {
     try {
-      const api = this.createApiInstance(accessToken);
-      const trackIds = seedTracks.split(",").filter(id => id.trim()).slice(0, 5);
-      
-      // Clean track IDs - remove any spotify:track: prefix
-      const cleanTrackIds = trackIds.map(id => id.replace('spotify:track:', ''));
-
-      const params: any = {
-        seed_tracks: cleanTrackIds,
-        limit,
-      };
-
-      // Add optional target parameters
-      if (targetEnergy !== undefined) {
-        params.target_energy = targetEnergy;
-      }
-      if (targetValence !== undefined) {
-        params.target_valence = targetValence;
-      }
-
-      const data = await api.getRecommendations(params);
-      return data.body;
-    } catch (error: any) {
-      console.error("Spotify recommendations failed, switching to AI-based recommendations");
+      // Skip Spotify recommendations API entirely, use AI-based recommendations directly
+      console.log("Using AI-based recommendations for playlist generation");
       
       // Get the seed track details first
+      const trackId = seedTracks.split(",")[0].replace('spotify:track:', '');
+      const seedTrack = await this.getTrack(accessToken, trackId);
+      
+      // Use AI-based recommendations as primary method
+      const aiRecommendations = await aiRecommendationService.getAIRecommendations(
+        accessToken,
+        seedTrack,
+        targetEnergy,
+        targetValence,
+        limit
+      );
+      
+      return aiRecommendations;
+    } catch (error: any) {
+      console.error("AI recommendations failed:", error);
+      
+      // Fallback: Return some popular tracks as a last resort
       try {
-        const trackId = seedTracks.split(",")[0].replace('spotify:track:', '');
-        const seedTrack = await this.getTrack(accessToken, trackId);
-        
-        // Use AI-based recommendations as fallback
-        const aiRecommendations = await aiRecommendationService.getAIRecommendations(
+        const searchResults = await this.search(
           accessToken,
-          seedTrack,
-          targetEnergy,
-          targetValence,
+          "year:2024",
+          "track",
           limit
         );
         
-        return aiRecommendations;
-      } catch (aiError) {
-        console.error("AI recommendations also failed:", aiError);
+        return {
+          tracks: searchResults.tracks?.items || [],
+          seeds: []
+        };
+      } catch (fallbackError) {
+        console.error("Fallback search also failed:", fallbackError);
         // Return empty recommendations instead of failing completely
         return {
           tracks: [],
