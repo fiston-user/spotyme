@@ -283,7 +283,7 @@ export const PlaylistPreviewModal: React.FC<PlaylistPreviewModalProps> = ({
                   activeOpacity={0.8}
                 >
                   <View style={[styles.actionButtonGradient, styles.spotifyButton]}>
-                    <Ionicons name="logo-spotify" size={24} color={Colors.primary} />
+                    <MaterialIcons name="open-in-new" size={24} color={Colors.primary} />
                     <Text style={[styles.actionButtonText, { color: Colors.text }]}>
                       View on Spotify
                     </Text>

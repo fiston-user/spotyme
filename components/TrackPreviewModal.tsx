@@ -132,10 +132,10 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
           >
             <View style={styles.modalContent}>
           {/* Blurred Album Art Background */}
-          {track?.album?.images?.[0]?.url && (
+          {(track?.album?.images?.[0]?.url || track?.albumArt) && (
             <>
               <Image
-                source={{ uri: track.album.images[0].url }}
+                source={{ uri: track.album?.images?.[0]?.url || track.albumArt }}
                 style={styles.backgroundImage}
                 blurRadius={25}
               />
@@ -166,21 +166,21 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
             {/* Track Info */}
             <View style={styles.trackInfo}>
             <Image
-              source={{ uri: track.album?.images?.[0]?.url || 'https://picsum.photos/seed/track/300/300' }}
+              source={{ uri: track.album?.images?.[0]?.url || track.albumArt || 'https://picsum.photos/seed/track/300/300' }}
               style={styles.albumArt}
             />
-            <Text style={styles.trackName}>{track.name}</Text>
+            <Text style={styles.trackName}>{track.name || track.title}</Text>
             <Text style={styles.artistName}>
-              {track.artists?.map((a: any) => a.name).join(', ')}
+              {track.artists?.map((a: any) => a.name).join(', ') || track.artist}
             </Text>
-            <Text style={styles.albumName}>{track.album?.name}</Text>
+            <Text style={styles.albumName}>{track.album?.name || track.album}</Text>
             
             {/* Track Meta */}
             <View style={styles.trackMeta}>
               <View style={styles.metaItem}>
                 <MaterialIcons name="schedule" size={16} color={Colors.textSecondary} />
                 <Text style={styles.metaText}>
-                  {formatDuration(track.duration_ms)}
+                  {track.duration_ms ? formatDuration(track.duration_ms) : track.duration ? `${Math.floor(track.duration / 60)}:${(track.duration % 60).toString().padStart(2, '0')}` : '0:00'}
                 </Text>
               </View>
               {track.popularity && (
