@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -45,7 +46,9 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
     setIsLoading(true);
     try {
       const response = await apiService.getTrackAudioFeatures(track.id);
+      console.log('Audio features response:', response);
       if (response.success && response.data) {
+        console.log('Audio features data:', response.data);
         setAudioFeatures(response.data);
       }
     } catch (error) {
@@ -116,19 +119,52 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
-          {/* Header */}
-          <View style={styles.header}>
-            <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <MaterialIcons name="close" size={24} color={Colors.text} />
-            </TouchableOpacity>
-            <Text style={styles.headerTitle}>Track Options</Text>
-            <View style={{ width: 24 }} />
-          </View>
+      <TouchableOpacity 
+        activeOpacity={1} 
+        style={styles.modalOverlay}
+        onPress={onClose}
+      >
+        <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFillObject}>
+          <TouchableOpacity 
+            activeOpacity={1} 
+            style={styles.modalContentWrapper}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalContent}>
+          {/* Blurred Album Art Background */}
+          {track?.album?.images?.[0]?.url && (
+            <>
+              <Image
+                source={{ uri: track.album.images[0].url }}
+                style={styles.backgroundImage}
+                blurRadius={25}
+              />
+              <LinearGradient
+                colors={[
+                  'rgba(18, 18, 18, 0.4)',
+                  'rgba(18, 18, 18, 0.85)',
+                  Colors.background,
+                ]}
+                style={styles.backgroundGradient}
+                locations={[0, 0.5, 1]}
+              />
+            </>
+          )}
+          
+          <ScrollView showsVerticalScrollIndicator={false} bounces={false}>
+            {/* Header */}
+            <View style={styles.header}>
+              <TouchableOpacity onPress={onClose} style={styles.closeButton}>
+                <BlurView intensity={80} style={styles.closeButtonBlur}>
+                  <MaterialIcons name="close" size={20} color={Colors.text} />
+                </BlurView>
+              </TouchableOpacity>
+              <Text style={styles.headerTitle}>Track Options</Text>
+              <View style={{ width: 36 }} />
+            </View>
 
-          {/* Track Info */}
-          <View style={styles.trackInfo}>
+            {/* Track Info */}
+            <View style={styles.trackInfo}>
             <Image
               source={{ uri: track.album?.images?.[0]?.url || 'https://picsum.photos/seed/track/300/300' }}
               style={styles.albumArt}
@@ -162,68 +198,86 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
           </View>
 
           {/* Track Vibe Tags */}
-          {audioFeatures && (
-            <View style={styles.vibeSection}>
-              <View style={styles.vibeTags}>
-                {audioFeatures.energy >= 0.7 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(226, 33, 52, 0.15)' }]}>
-                    <MaterialIcons name="whatshot" size={14} color={Colors.danger} />
-                    <Text style={[styles.vibeTagText, { color: Colors.danger }]}>
-                      High Energy
-                    </Text>
-                  </View>
-                )}
-                {audioFeatures.energy < 0.4 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(69, 10, 245, 0.15)' }]}>
-                    <MaterialIcons name="nightlight" size={14} color="#450AF5" />
-                    <Text style={[styles.vibeTagText, { color: '#450AF5' }]}>
-                      Chill
-                    </Text>
-                  </View>
-                )}
-                {audioFeatures.valence >= 0.7 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(255, 205, 0, 0.15)' }]}>
-                    <MaterialIcons name="sentiment-very-satisfied" size={14} color="#FFCD00" />
-                    <Text style={[styles.vibeTagText, { color: '#FFCD00' }]}>
-                      Feel Good
-                    </Text>
-                  </View>
-                )}
-                {audioFeatures.valence < 0.3 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(92, 67, 232, 0.15)' }]}>
-                    <MaterialIcons name="nights-stay" size={14} color="#5C43E8" />
-                    <Text style={[styles.vibeTagText, { color: '#5C43E8' }]}>
-                      Moody
-                    </Text>
-                  </View>
-                )}
-                {audioFeatures.danceability > 0.7 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(29, 185, 84, 0.15)' }]}>
-                    <MaterialIcons name="directions-run" size={14} color={Colors.primary} />
-                    <Text style={[styles.vibeTagText, { color: Colors.primary }]}>
-                      Danceable
-                    </Text>
-                  </View>
-                )}
-                {audioFeatures.acousticness > 0.7 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(139, 92, 246, 0.15)' }]}>
-                    <MaterialIcons name="piano" size={14} color="#8B5CF6" />
-                    <Text style={[styles.vibeTagText, { color: '#8B5CF6' }]}>
-                      Acoustic
-                    </Text>
-                  </View>
-                )}
-                {track.popularity >= 80 && (
-                  <View style={[styles.vibeTag, { backgroundColor: 'rgba(255, 107, 0, 0.15)' }]}>
-                    <MaterialIcons name="trending-up" size={14} color="#FF6B00" />
-                    <Text style={[styles.vibeTagText, { color: '#FF6B00' }]}>
-                      Trending
-                    </Text>
-                  </View>
-                )}
+          {audioFeatures && (() => {
+            const allTags = [];
+            
+            // Energy tag (always show one)
+            if (audioFeatures.energy >= 0.65) {
+              allTags.push({
+                icon: "whatshot",
+                label: "High Energy",
+                bgColor: 'rgba(226, 33, 52, 0.15)',
+                color: Colors.danger
+              });
+            } else if (audioFeatures.energy >= 0.45) {
+              allTags.push({
+                icon: "flash-on",
+                label: "Moderate Energy",
+                bgColor: 'rgba(255, 165, 0, 0.15)',
+                color: Colors.warning
+              });
+            } else {
+              allTags.push({
+                icon: "nightlight",
+                label: "Chill",
+                bgColor: 'rgba(69, 10, 245, 0.15)',
+                color: "#450AF5"
+              });
+            }
+            
+            // Mood tag (always show one)
+            if (audioFeatures.valence >= 0.65) {
+              allTags.push({
+                icon: "sentiment-very-satisfied",
+                label: "Feel Good",
+                bgColor: 'rgba(255, 205, 0, 0.15)',
+                color: "#FFCD00"
+              });
+            } else if (audioFeatures.valence >= 0.35) {
+              allTags.push({
+                icon: "mood",
+                label: "Neutral Mood",
+                bgColor: 'rgba(29, 185, 84, 0.15)',
+                color: Colors.primary
+              });
+            } else {
+              allTags.push({
+                icon: "nights-stay",
+                label: "Moody",
+                bgColor: 'rgba(92, 67, 232, 0.15)',
+                color: "#5C43E8"
+              });
+            }
+            
+            // Additional tags (count them but don't show all)
+            let additionalCount = 0;
+            if (audioFeatures.danceability >= 0.6) additionalCount++;
+            if (audioFeatures.acousticness >= 0.6) additionalCount++;
+            if (track.popularity >= 70) additionalCount++;
+            if (audioFeatures.instrumentalness >= 0.5) additionalCount++;
+            
+            const visibleTags = allTags.slice(0, 2);
+            
+            return (
+              <View style={styles.vibeSection}>
+                <View style={styles.vibeTags}>
+                  {visibleTags.map((tag, index) => (
+                    <View key={index} style={[styles.vibeTag, { backgroundColor: tag.bgColor }]}>
+                      <MaterialIcons name={tag.icon as any} size={14} color={tag.color} />
+                      <Text style={[styles.vibeTagText, { color: tag.color }]}>
+                        {tag.label}
+                      </Text>
+                    </View>
+                  ))}
+                  {additionalCount > 0 && (
+                    <View style={[styles.vibeTag, styles.moreTag]}>
+                      <Text style={styles.moreTagText}>+{additionalCount} more</Text>
+                    </View>
+                  )}
+                </View>
               </View>
-            </View>
-          )}
+            );
+          })()}
 
           {/* Action Buttons */}
           <View style={styles.actionButtons}>
@@ -274,8 +328,14 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
               </LinearGradient>
             </TouchableOpacity>
           </View>
+          
+          {/* Bottom padding for scroll */}
+          <View style={{ height: 40 }} />
+          </ScrollView>
         </View>
-      </BlurView>
+          </TouchableOpacity>
+        </BlurView>
+      </TouchableOpacity>
     </Modal>
   );
 };
@@ -283,25 +343,53 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
+  },
+  modalContentWrapper: {
+    flex: 1,
     justifyContent: 'flex-end',
   },
   modalContent: {
     backgroundColor: Colors.background,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
-    maxHeight: screenHeight * 0.75,
-    paddingBottom: 20,
+    maxHeight: screenHeight * 0.85,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  backgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    width: '100%',
+  },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
+    zIndex: 10,
   },
   closeButton: {
-    padding: 4,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  closeButtonBlur: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
   },
   headerTitle: {
     fontSize: 18,
@@ -311,12 +399,21 @@ const styles = StyleSheet.create({
   trackInfo: {
     alignItems: 'center',
     padding: 20,
+    paddingTop: 10,
   },
   albumArt: {
-    width: 120,
-    height: 120,
+    width: 140,
+    height: 140,
     borderRadius: 12,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
   trackName: {
     fontSize: 22,
@@ -377,6 +474,16 @@ const styles = StyleSheet.create({
   vibeTagText: {
     fontSize: 13,
     fontWeight: '600',
+  },
+  moreTag: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  moreTagText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: Colors.textSecondary,
   },
   actionButtons: {
     paddingHorizontal: 20,

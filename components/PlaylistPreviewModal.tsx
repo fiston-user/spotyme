@@ -144,15 +144,47 @@ export const PlaylistPreviewModal: React.FC<PlaylistPreviewModalProps> = ({
       transparent={true}
       onRequestClose={onClose}
     >
-      <BlurView intensity={100} tint="dark" style={styles.modalOverlay}>
-        <View style={styles.modalContent}>
+      <TouchableOpacity 
+        activeOpacity={1} 
+        style={styles.modalOverlay}
+        onPress={onClose}
+      >
+        <BlurView intensity={100} tint="dark" style={StyleSheet.absoluteFillObject}>
+          <TouchableOpacity 
+            activeOpacity={1} 
+            style={styles.modalContentWrapper}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <View style={styles.modalContent}>
+          {/* Blurred Playlist Art Background */}
+          {(playlistDetails?.images?.[0]?.url || playlistBasicInfo?.images?.[0]?.url) && (
+            <>
+              <Image
+                source={{ uri: playlistDetails?.images?.[0]?.url || playlistBasicInfo?.images?.[0]?.url }}
+                style={styles.backgroundImage}
+                blurRadius={25}
+              />
+              <LinearGradient
+                colors={[
+                  'rgba(18, 18, 18, 0.4)',
+                  'rgba(18, 18, 18, 0.85)',
+                  Colors.background,
+                ]}
+                style={styles.backgroundGradient}
+                locations={[0, 0.5, 1]}
+              />
+            </>
+          )}
+          
           {/* Header */}
           <View style={styles.header}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <MaterialIcons name="close" size={24} color={Colors.text} />
+              <BlurView intensity={80} style={styles.closeButtonBlur}>
+                <MaterialIcons name="close" size={20} color={Colors.text} />
+              </BlurView>
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Playlist Preview</Text>
-            <View style={{ width: 24 }} />
+            <View style={{ width: 36 }} />
           </View>
 
           {isLoading ? (
@@ -293,13 +325,18 @@ export const PlaylistPreviewModal: React.FC<PlaylistPreviewModalProps> = ({
             </ScrollView>
           ) : null}
         </View>
-      </BlurView>
+          </TouchableOpacity>
+        </BlurView>
+      </TouchableOpacity>
     </Modal>
   );
 };
 
 const styles = StyleSheet.create({
   modalOverlay: {
+    flex: 1,
+  },
+  modalContentWrapper: {
     flex: 1,
     justifyContent: 'flex-end',
   },
@@ -309,17 +346,42 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 24,
     maxHeight: screenHeight * 0.85,
     paddingBottom: 20,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  backgroundImage: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
+    width: '100%',
+  },
+  backgroundGradient: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 300,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.border,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    paddingBottom: 10,
   },
   closeButton: {
-    padding: 4,
+    borderRadius: 20,
+    overflow: 'hidden',
+  },
+  closeButtonBlur: {
+    width: 36,
+    height: 36,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 18,
   },
   headerTitle: {
     fontSize: 18,
@@ -344,6 +406,14 @@ const styles = StyleSheet.create({
     height: 160,
     borderRadius: 12,
     marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 8,
+    },
+    shadowOpacity: 0.4,
+    shadowRadius: 12,
+    elevation: 10,
   },
   playlistName: {
     fontSize: 24,
