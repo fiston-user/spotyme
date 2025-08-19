@@ -5,7 +5,7 @@ import { spotifyApiService } from "../services/spotifyApi";
 import { playlistValidation } from "../middleware/validation";
 import { playlistCreationLimiter } from "../middleware/rateLimiter";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 

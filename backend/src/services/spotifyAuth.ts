@@ -89,7 +89,7 @@ class SpotifyAuthService {
     return authUrl;
   }
 
-  async handleCallback(code: string, _state?: string): Promise<{
+  async handleCallback(code: string): Promise<{
     access_token: string;
     refresh_token: string;
     expires_in: number;

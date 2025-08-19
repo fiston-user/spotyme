@@ -3,7 +3,7 @@ import { spotifyApiService } from '../services/spotifyApi';
 import { authMiddleware } from '../middleware/auth';
 import { spotifyApiLimiter } from '../middleware/rateLimiter';
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 router.use(spotifyApiLimiter);

@@ -17,7 +17,7 @@ declare global {
   }> | undefined;
 }
 
-const router = Router();
+const router: Router = Router();
 
 router.get("/login", (req: Request, res: Response) => {
   // Generate a new state for CSRF protection
@@ -58,7 +58,7 @@ router.get(
     }
 
     try {
-      const tokens = await spotifyAuthService.handleCallback(code, state);
+      const tokens = await spotifyAuthService.handleCallback(code);
       const spotifyUser = await spotifyAuthService.getUserProfile(
         tokens.access_token
       );

@@ -2,7 +2,7 @@ import { Router } from "express";
 import { authMiddleware } from "../middleware/auth";
 import { userService } from "../services/userService";
 
-const router = Router();
+const router: Router = Router();
 
 router.use(authMiddleware);
 
