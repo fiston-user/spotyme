@@ -19,6 +19,7 @@ import { Song } from "../../constants/MockData";
 import Slider from "@react-native-community/slider";
 import { apiService } from "../../services/api";
 import { BlurView } from "expo-blur";
+import { PlaylistBuilderLoadingSkeleton } from "../../components/skeletons/PlaylistBuilderSkeletons";
 
 const formatDuration = (seconds: number) => {
   const mins = Math.floor(seconds / 60);
@@ -256,13 +257,7 @@ export default function PlaylistBuilderScreen() {
 
 
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Analyzing track</Text>
-        <Text style={styles.loadingSubtext}>Just a moment...</Text>
-      </View>
-    );
+    return <PlaylistBuilderLoadingSkeleton />;
   }
 
   return (
@@ -758,23 +753,6 @@ const styles = StyleSheet.create({
     padding: 0,
     borderBottomWidth: 2,
     borderBottomColor: Colors.primary,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.background,
-  },
-  loadingText: {
-    marginTop: 20,
-    fontSize: 18,
-    fontWeight: "600",
-    color: Colors.text,
-  },
-  loadingSubtext: {
-    marginTop: 8,
-    fontSize: 14,
-    color: Colors.textSecondary,
   },
   seedSection: {
     paddingHorizontal: 20,

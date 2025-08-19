@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
   ScrollView
@@ -20,6 +19,7 @@ import { PlaylistCard } from '../../components/PlaylistCard';
 import { Button } from '../../components/ui/Button';
 import { apiService } from '../../services/api';
 import { BlurView } from 'expo-blur';
+import { PlaylistsLoadingSkeleton } from '../../components/skeletons/PlaylistSkeletons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -137,10 +137,7 @@ export default function PlaylistsScreen() {
       </LinearGradient>
 
       {isLoading ? (
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color={Colors.primary} />
-          <Text style={styles.loadingText}>Loading your playlists...</Text>
-        </View>
+        <PlaylistsLoadingSkeleton />
       ) : error ? (
         <View style={styles.errorContainer}>
           <MaterialIcons name="error-outline" size={64} color={Colors.danger} />
@@ -446,17 +443,6 @@ const styles = StyleSheet.create({
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 20,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.textSecondary,
   },
   errorContainer: {
     flex: 1,

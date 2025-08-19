@@ -6,7 +6,6 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
-  ActivityIndicator,
   Image,
   Dimensions
 } from 'react-native';
@@ -23,6 +22,10 @@ import { ArtistCarousel } from '../../components/ArtistCarousel';
 import { FeaturedSection } from '../../components/FeaturedSection';
 import { PlaylistPreviewModal } from '../../components/PlaylistPreviewModal';
 import { TrackPreviewModal } from '../../components/TrackPreviewModal';
+import { 
+  TrackListSkeleton, 
+  RecommendationsSkeleton 
+} from '../../components/skeletons/SearchSkeletons';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -265,10 +268,7 @@ export default function SearchScreen() {
         )}
 
         {isLoading ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={Colors.primary} />
-            <Text style={styles.loadingText}>Searching Spotify...</Text>
-          </View>
+          <TrackListSkeleton count={6} />
         ) : searchResults.length > 0 ? (
           <View style={styles.resultsSection}>
             <View style={styles.resultsHeader}>
@@ -348,10 +348,7 @@ export default function SearchScreen() {
         ) : !searchQuery.trim() ? (
           <View style={styles.recommendationsContainer}>
             {recommendationsLoading ? (
-              <View style={styles.recommendationsLoadingContainer}>
-                <ActivityIndicator size="large" color={Colors.primary} />
-                <Text style={styles.loadingText}>Loading personalized recommendations...</Text>
-              </View>
+              <RecommendationsSkeleton />
             ) : recommendationsError ? (
               <View style={styles.welcomeState}>
                 <View style={styles.welcomeCard}>
@@ -544,16 +541,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 40,
   },
-  loadingContainer: {
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 100,
-  },
-  loadingText: {
-    marginTop: 16,
-    fontSize: 16,
-    color: Colors.textSecondary,
-  },
   resultsSection: {
     paddingHorizontal: 20,
   },
@@ -728,12 +715,6 @@ const styles = StyleSheet.create({
   recommendationsContainer: {
     flex: 1,
     paddingTop: 8,
-  },
-  recommendationsLoadingContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingTop: 60,
   },
   refreshButton: {
     flexDirection: 'row',

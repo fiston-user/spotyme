@@ -7,7 +7,6 @@ import {
   Alert,
   ScrollView,
   Image,
-  ActivityIndicator,
   RefreshControl,
   Dimensions,
 } from "react-native";
@@ -18,6 +17,7 @@ import { Colors } from "../../constants/Colors";
 import { apiService } from "../../services/api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
+import { ProfileLoadingSkeleton } from "../../components/skeletons/ProfileSkeletons";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -154,12 +154,7 @@ export default function ProfileScreen() {
   };
 
   if (isLoading) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={Colors.primary} />
-        <Text style={styles.loadingText}>Loading profile...</Text>
-      </View>
-    );
+    return <ProfileLoadingSkeleton />;
   }
 
   if (error && !profile) {
@@ -460,17 +455,6 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 40,
-  },
-  loadingContainer: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-    backgroundColor: Colors.background,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 14,
-    color: Colors.textSecondary,
   },
   errorContainer: {
     flex: 1,
