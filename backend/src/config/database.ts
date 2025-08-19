@@ -1,4 +1,7 @@
 import mongoose from 'mongoose';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('database');
 
 // Validate MongoDB URI to prevent injection
 const validateMongoUri = (uri: string): boolean => {
@@ -34,17 +37,17 @@ export const connectDB = async (): Promise<void> => {
     
     await mongoose.connect(uri, connectionOptions);
     
-    console.log('MongoDB connected successfully');
+    logger.info('MongoDB connected successfully');
   } catch (error) {
-    console.error('MongoDB connection error:', error);
+    logger.error({ error }, 'MongoDB connection error');
     throw error;
   }
 };
 
 mongoose.connection.on('error', (error) => {
-  console.error('MongoDB connection error:', error);
+  logger.error({ error }, 'MongoDB connection error');
 });
 
 mongoose.connection.on('disconnected', () => {
-  console.log('MongoDB disconnected');
+  logger.warn('MongoDB disconnected');
 });

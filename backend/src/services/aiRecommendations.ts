@@ -1,5 +1,8 @@
 import OpenAI from 'openai';
 import { spotifyApiService } from './spotifyApi';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('aiRecommendations');
 
 class AIRecommendationService {
   private openai: OpenAI | null = null;
@@ -63,7 +66,7 @@ class AIRecommendationService {
       const title = completion.choices[0].message.content?.trim() || this.generateFallbackTitle(seedTrack, targetEnergy, targetValence);
       return title;
     } catch (error) {
-      console.error('AI title generation failed:', error);
+      logger.error({ error }, 'AI title generation failed');
       return this.generateFallbackTitle(seedTrack, targetEnergy, targetValence);
     }
   }
@@ -109,7 +112,7 @@ class AIRecommendationService {
         this.generateFallbackDescription(seedTrack, recommendations.length, targetEnergy, targetValence);
       return description;
     } catch (error) {
-      console.error('AI description generation failed:', error);
+      logger.error({ error }, 'AI description generation failed');
       return this.generateFallbackDescription(seedTrack, recommendations.length, targetEnergy, targetValence);
     }
   }
@@ -163,7 +166,7 @@ class AIRecommendationService {
         limit
       );
     } catch (error) {
-      console.error('AI Recommendations error:', error);
+      logger.error({ error }, 'AI Recommendations error');
       // Final fallback: return popular tracks
       return await this.getPopularTracks(accessToken, limit);
     }
@@ -217,7 +220,7 @@ class AIRecommendationService {
       try {
         suggestedSongs = JSON.parse(responseText);
       } catch (parseError) {
-        console.error('Failed to parse AI response:', responseText);
+        logger.error({ responseText }, 'Failed to parse AI response');
         throw new Error('Invalid AI response format');
       }
 
@@ -237,7 +240,7 @@ class AIRecommendationService {
             tracks.push(searchResults.tracks.items[0]);
           }
         } catch (searchError) {
-          console.log(`Could not find: ${song.title} by ${song.artist}`);
+          logger.debug({ song }, `Could not find: ${song.title} by ${song.artist}`);
         }
       }
 
@@ -254,7 +257,7 @@ class AIRecommendationService {
 
       return { tracks, seeds: [] };
     } catch (error) {
-      console.error('OpenAI recommendation error:', error);
+      logger.error({ error }, 'OpenAI recommendation error');
       throw error;
     }
   }
@@ -289,7 +292,7 @@ class AIRecommendationService {
           tracks.push(...artistTracks);
         }
       } catch (err) {
-        console.log('Artist search failed:', err);
+        logger.debug({ error: err }, 'Artist search failed');
       }
 
       // Strategy 2: Search for related artists (30% of recommendations)
@@ -303,7 +306,7 @@ class AIRecommendationService {
         );
         tracks.push(...genreSearch);
       } catch (err) {
-        console.log('Genre search failed:', err);
+        logger.debug({ error: err }, 'Genre search failed');
       }
 
       // Strategy 3: Mood-based search (40% of recommendations)
@@ -328,7 +331,7 @@ class AIRecommendationService {
             tracks.push(...diverseTracks);
           }
         } catch (searchError) {
-          console.log(`Mood search failed for term: ${term}`);
+          logger.debug({ term }, `Mood search failed for term: ${term}`);
         }
       }
 
@@ -351,13 +354,13 @@ class AIRecommendationService {
             uniqueTracks.push(...popularSearch.tracks.items.slice(0, needed));
           }
         } catch (err) {
-          console.log('Popular tracks fallback failed');
+          logger.debug('Popular tracks fallback failed');
         }
       }
 
       return { tracks: uniqueTracks.slice(0, limit), seeds: [] };
     } catch (error) {
-      console.error('Search-based recommendation error:', error);
+      logger.error({ error }, 'Search-based recommendation error');
       throw error;
     }
   }
@@ -450,7 +453,7 @@ class AIRecommendationService {
           tracks.push(...genreSearch.tracks.items);
         }
       } catch (err) {
-        console.log(`Genre search failed for: ${genre}`);
+        logger.debug({ genre }, `Genre search failed for: ${genre}`);
       }
     }
     
@@ -510,7 +513,7 @@ class AIRecommendationService {
         seeds: [] 
       };
     } catch (error) {
-      console.error('Popular tracks fallback error:', error);
+      logger.error({ error }, 'Popular tracks fallback error');
       return { tracks: [], seeds: [] };
     }
   }

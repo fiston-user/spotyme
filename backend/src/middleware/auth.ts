@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import { User } from '../models/User';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('auth-middleware');
 
 declare module 'express-session' {
   interface SessionData {
@@ -50,7 +53,7 @@ export const authMiddleware = async (
     
     res.status(401).json({ error: 'Unauthorized. Please login first.' });
   } catch (error) {
-    console.error('Auth middleware error:', error);
+    logger.error({ error }, 'Auth middleware error');
     res.status(500).json({ error: 'Authentication error' });
   }
 };

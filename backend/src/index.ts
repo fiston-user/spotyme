@@ -9,10 +9,13 @@ import MongoStore from "connect-mongo";
 import { connectDB } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import { rateLimiter } from "./middleware/rateLimiter";
+import { createLogger } from "./utils/logger";
 import authRoutes from "./routes/auth";
 import spotifyRoutes from "./routes/spotify";
 import playlistRoutes from "./routes/playlist";
 import userRoutes from "./routes/user";
+
+const logger = createLogger('server');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -39,12 +42,13 @@ app.use(express.urlencoded({ extended: true }));
 const getSessionSecret = (): string => {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
-    console.error('WARNING: SESSION_SECRET is missing or too short!');
-    console.error('Please set a secure SESSION_SECRET in your environment variables');
+    logger.error('SESSION_SECRET is missing or too short!');
+    logger.error('Please set a secure SESSION_SECRET in your environment variables');
     if (process.env.NODE_ENV === 'production') {
       throw new Error('SESSION_SECRET is required in production');
     }
     // Only for development - generate a temporary secret
+    logger.warn('Generating temporary session secret for development');
     return require('crypto').randomBytes(32).toString('hex');
   }
   return secret;
@@ -97,11 +101,11 @@ const startServer = async () => {
   try {
     await connectDB();
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-      console.log(`Environment: ${process.env.NODE_ENV}`);
+      logger.info({ port: PORT }, `Server running on port ${PORT}`);
+      logger.info({ env: process.env.NODE_ENV }, `Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
-    console.error("Failed to start server:", error);
+    logger.fatal({ error }, 'Failed to start server');
     process.exit(1);
   }
 };

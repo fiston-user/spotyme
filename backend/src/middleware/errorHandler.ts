@@ -1,5 +1,8 @@
 import { Request, Response } from "express";
 import crypto from "crypto";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger('errorHandler');
 
 interface ErrorWithStatus extends Error {
   status?: number;
@@ -68,8 +71,13 @@ export const errorHandler = (
   const status = err.status || 500;
   const isDevelopment = process.env.NODE_ENV === "development";
 
-  if (isDevelopment) {
-    console.error(`[Error ${errorId}] Stack:`, err.stack);
+  // Log the error with appropriate level
+  if (status >= 500) {
+    logger.error({ errorId, error: err, stack: err.stack }, `Server error: ${err.message}`);
+  } else if (status >= 400) {
+    logger.warn({ errorId, error: err.message, status }, `Client error: ${err.message}`);
+  } else {
+    logger.debug({ errorId, error: err }, `Error: ${err.message}`);
   }
 
   // Prepare user-facing error message

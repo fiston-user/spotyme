@@ -1,5 +1,8 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { encrypt, decrypt } from '../utils/encryption';
+import { createLogger } from '../utils/logger';
+
+const logger = createLogger('UserModel');
 
 export interface IUser extends Document {
   spotifyId: string;
@@ -86,7 +89,7 @@ UserSchema.methods.getAccessToken = function(): string {
   try {
     return decrypt(this.accessToken);
   } catch (error) {
-    console.error('Failed to decrypt access token');
+    logger.error('Failed to decrypt access token');
     throw new Error('Token decryption failed');
   }
 };
@@ -99,7 +102,7 @@ UserSchema.methods.getRefreshToken = function(): string {
   try {
     return decrypt(this.refreshToken);
   } catch (error) {
-    console.error('Failed to decrypt refresh token');
+    logger.error('Failed to decrypt refresh token');
     throw new Error('Token decryption failed');
   }
 };

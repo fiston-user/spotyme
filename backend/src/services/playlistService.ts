@@ -1,6 +1,9 @@
 import { Playlist, IPlaylist } from "../models/Playlist";
 import { spotifyApiService } from "./spotifyApi";
 import { aiRecommendationService } from "./aiRecommendations";
+import { createLogger } from "../utils/logger";
+
+const logger = createLogger('playlistService');
 
 interface GeneratePlaylistOptions {
   name: string;
@@ -121,7 +124,7 @@ class PlaylistService {
           const trackId = options.seedTracks[0].replace('spotify:track:', '');
           seedTrackDetails = await spotifyApiService.getTrack(accessToken, trackId);
         } catch (error) {
-          console.log('Could not fetch seed track details for smart naming');
+          logger.debug('Could not fetch seed track details for smart naming');
         }
       }
       
@@ -140,7 +143,7 @@ class PlaylistService {
               previewUrl: track.preview_url || null,
             };
           } catch (error) {
-            console.error(`Failed to fetch track ${trackId}:`, error);
+            logger.error({ error, trackId }, `Failed to fetch track ${trackId}`);
             // Return a placeholder track if fetch fails
             return {
               spotifyId: trackId,
@@ -179,7 +182,7 @@ class PlaylistService {
             targetValence
           );
         } catch (error) {
-          console.log('AI naming failed, using algorithmic fallback');
+          logger.info('AI naming failed, using algorithmic fallback');
           playlistName = this.generateSmartPlaylistName(
             seedTrackDetails,
             targetEnergy,
@@ -214,7 +217,7 @@ class PlaylistService {
 
       return playlist;
     } catch (error) {
-      console.error("Error creating playlist with tracks:", error);
+      logger.error({ error }, 'Error creating playlist with tracks');
       throw new Error("Failed to create playlist with selected tracks");
     }
   }
@@ -233,7 +236,7 @@ class PlaylistService {
           const trackId = seedTracks[0].replace('spotify:track:', '');
           seedTrackDetails = await spotifyApiService.getTrack(accessToken, trackId);
         } catch (error) {
-          console.log('Could not fetch seed track details for smart naming');
+          logger.debug('Could not fetch seed track details for smart naming');
         }
       }
       
@@ -273,7 +276,7 @@ class PlaylistService {
           // For generation, we need to get the actual tracks first
           // We'll update description after we have the recommendations
         } catch (error) {
-          console.log('AI naming failed, using algorithmic fallback');
+          logger.info('AI naming failed, using algorithmic fallback');
           playlistName = this.generateSmartPlaylistName(
             seedTrackDetails,
             targetEnergy,
@@ -309,7 +312,7 @@ class PlaylistService {
             targetValence
           );
         } catch (error) {
-          console.log('AI description generation failed, using fallback');
+          logger.info('AI description generation failed, using fallback');
           playlistDescription = this.generateSmartDescription(
             seedTrackDetails,
             targetEnergy,
@@ -339,7 +342,7 @@ class PlaylistService {
 
       return playlist;
     } catch (error) {
-      console.error("Error generating playlist:", error);
+      logger.error({ error }, 'Error generating playlist');
       throw new Error("Failed to generate playlist");
     }
   }
@@ -348,7 +351,7 @@ class PlaylistService {
     try {
       return await Playlist.find({ userId }).sort({ createdAt: -1 });
     } catch (error) {
-      console.error("Error getting user playlists:", error);
+      logger.error({ error }, 'Error getting user playlists');
       throw new Error("Failed to get user playlists");
     }
   }
@@ -360,7 +363,7 @@ class PlaylistService {
     try {
       return await Playlist.findOne({ _id: playlistId, userId });
     } catch (error) {
-      console.error("Error getting playlist:", error);
+      logger.error({ error }, 'Error getting playlist');
       throw new Error("Failed to get playlist");
     }
   }
@@ -377,7 +380,7 @@ class PlaylistService {
         { new: true }
       );
     } catch (error) {
-      console.error("Error updating playlist:", error);
+      logger.error({ error }, 'Error updating playlist');
       throw new Error("Failed to update playlist");
     }
   }
@@ -386,7 +389,7 @@ class PlaylistService {
     try {
       await Playlist.findOneAndDelete({ _id: playlistId, userId });
     } catch (error) {
-      console.error("Error deleting playlist:", error);
+      logger.error({ error }, 'Error deleting playlist');
       throw new Error("Failed to delete playlist");
     }
   }
@@ -406,7 +409,7 @@ class PlaylistService {
         { new: true }
       );
     } catch (error) {
-      console.error("Error adding track to playlist:", error);
+      logger.error({ error }, 'Error adding track to playlist');
       throw new Error("Failed to add track to playlist");
     }
   }
@@ -432,7 +435,7 @@ class PlaylistService {
         { new: true }
       );
     } catch (error) {
-      console.error("Error removing track from playlist:", error);
+      logger.error({ error }, 'Error removing track from playlist');
       throw new Error("Failed to remove track from playlist");
     }
   }

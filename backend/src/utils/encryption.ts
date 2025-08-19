@@ -1,4 +1,7 @@
 import crypto from "crypto";
+import { createLogger } from "./logger";
+
+const logger = createLogger('encryption');
 
 // Encryption configuration
 const algorithm = "aes-256-gcm";
@@ -12,8 +15,8 @@ const keyLength = 32;
 const getEncryptionKey = (): string => {
   const key = process.env.ENCRYPTION_KEY;
   if (!key) {
-    console.error("WARNING: ENCRYPTION_KEY not set in environment variables");
-    console.error("Using a temporary key - this is not secure for production!");
+    logger.warn('ENCRYPTION_KEY not set in environment variables');
+    logger.warn('Using a temporary key - this is not secure for production!');
     return crypto.randomBytes(32).toString("hex");
   }
   return key;
@@ -44,7 +47,7 @@ export const encrypt = (text: string): string => {
 
     return combined.toString("base64");
   } catch (error) {
-    console.error("Encryption error:", error);
+    logger.error({ error }, 'Encryption error');
     throw new Error("Failed to encrypt data");
   }
 };
@@ -74,7 +77,7 @@ export const decrypt = (encryptedData: string): string => {
 
     return decrypted.toString("utf8");
   } catch (error) {
-    console.error("Decryption error:", error);
+    logger.error({ error }, 'Decryption error');
     throw new Error("Failed to decrypt data");
   }
 };
