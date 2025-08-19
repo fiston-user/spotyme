@@ -5,6 +5,7 @@ import express from "express";
 import cors from "cors";
 import helmet from "helmet";
 import session from "express-session";
+import MongoStore from "connect-mongo";
 import { connectDB } from "./config/database";
 import { errorHandler } from "./middleware/errorHandler";
 import { rateLimiter } from "./middleware/rateLimiter";
@@ -56,6 +57,15 @@ app.use(
     resave: false,
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
+    store: MongoStore.create({
+      mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/spotyme',
+      collectionName: 'sessions',
+      ttl: 60 * 60 * 24 * 7, // 7 days in seconds
+      autoRemove: 'native', // Let MongoDB handle TTL
+      crypto: {
+        secret: process.env.SESSION_STORE_SECRET || getSessionSecret()
+      }
+    }),
     cookie: {
       secure: process.env.NODE_ENV === "production", // HTTPS only in production
       httpOnly: true, // Prevent XSS attacks
@@ -64,7 +74,6 @@ app.use(
       domain: process.env.COOKIE_DOMAIN || undefined,
     },
     // Add session store configuration for production
-    // In production, use Redis or MongoDB session store
     ...(process.env.NODE_ENV === 'production' && {
       proxy: true, // Trust proxy in production
     }),
