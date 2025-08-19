@@ -43,6 +43,8 @@ export const ArtistCarousel: React.FC<ArtistCarouselProps> = ({
   onSeeAllPress,
   isLoading = false,
 }) => {
+  const [pressedId, setPressedId] = React.useState<string | null>(null);
+  
   const formatFollowers = (count?: number) => {
     if (!count) return '';
     if (count >= 1000000) {
@@ -101,27 +103,22 @@ export const ArtistCarousel: React.FC<ArtistCarouselProps> = ({
               index === artists.length - 1 && styles.lastCard,
             ]}
             onPress={() => onArtistPress(artist)}
-            activeOpacity={0.8}
+            onPressIn={() => setPressedId(artist.id)}
+            onPressOut={() => setPressedId(null)}
+            activeOpacity={0.9}
           >
-            <View style={styles.imageContainer}>
+            <View style={[
+              styles.imageContainer,
+              pressedId === artist.id && styles.imageContainerPressed
+            ]}>
               <Image
                 source={{ uri: artist.images?.[0]?.url || 'https://picsum.photos/seed/artist/300/300' }}
                 style={styles.artistImage}
               />
-              <LinearGradient
-                colors={['transparent', 'rgba(0,0,0,0.9)']}
-                style={styles.imageGradient}
-              />
-              <View style={styles.playButton}>
-                <LinearGradient
-                  colors={Colors.gradients.green as any}
-                  style={styles.playButtonGradient}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                >
-                  <MaterialIcons name="play-arrow" size={20} color={Colors.background} />
-                </LinearGradient>
-              </View>
+              <View style={[
+                styles.imageRing,
+                pressedId === artist.id && styles.imageRingActive
+              ]} />
             </View>
             
             <View style={styles.artistInfo}>
@@ -195,31 +192,37 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_WIDTH,
     borderRadius: CARD_WIDTH / 2,
-    overflow: 'hidden',
     marginBottom: 8,
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 2,
+    },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   artistImage: {
     width: '100%',
     height: '100%',
+    borderRadius: CARD_WIDTH / 2,
   },
-  imageGradient: {
+  imageRing: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    height: '50%',
+    top: -3,
+    left: -3,
+    right: -3,
+    bottom: -3,
+    borderRadius: (CARD_WIDTH + 6) / 2,
+    borderWidth: 2,
+    borderColor: Colors.primary,
+    opacity: 0,
   },
-  playButton: {
-    position: 'absolute',
-    bottom: 8,
-    right: 8,
+  imageContainerPressed: {
+    transform: [{ scale: 0.95 }],
   },
-  playButtonGradient: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
+  imageRingActive: {
+    opacity: 1,
   },
   artistInfo: {
     alignItems: 'center',

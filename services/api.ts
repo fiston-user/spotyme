@@ -263,6 +263,24 @@ class ApiService {
     }
   }
 
+  async getSpotifyPlaylistDetails(playlistId: string) {
+    try {
+      const response = await fetch(
+        `${API_BASE_URL}/api/spotify/playlist/${playlistId}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
+      return this.handleResponse(response);
+    } catch (error) {
+      return {
+        success: false,
+        error: "Failed to fetch playlist details",
+      };
+    }
+  }
+
   async getRecommendations(seedTracks: string, limit: number, targetEnergy?: number, targetValence?: number) {
     try {
       const params = new URLSearchParams({

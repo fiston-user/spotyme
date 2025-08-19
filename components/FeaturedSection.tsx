@@ -146,12 +146,12 @@ export const FeaturedSection: React.FC<FeaturedSectionProps> = ({
               />
               <View style={styles.playButton}>
                 <LinearGradient
-                  colors={Colors.gradients.green as any}
+                  colors={Colors.gradients.purple as any}
                   style={styles.playButtonGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <MaterialIcons name="play-arrow" size={24} color={Colors.background} />
+                  <MaterialIcons name="library-add" size={22} color={Colors.text} />
                 </LinearGradient>
               </View>
             </View>

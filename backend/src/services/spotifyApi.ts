@@ -196,6 +196,39 @@ class SpotifyApiService {
     }
   }
 
+  async getPlaylistDetails(
+    accessToken: string,
+    playlistId: string
+  ): Promise<any> {
+    try {
+      const api = this.createApiInstance(accessToken);
+      
+      // Get playlist metadata
+      const playlistData = await api.getPlaylist(playlistId);
+      
+      // Get first 10 tracks for preview
+      const tracksData = await api.getPlaylistTracks(playlistId, { limit: 10 });
+      
+      return {
+        id: playlistData.body.id,
+        name: playlistData.body.name,
+        description: playlistData.body.description,
+        images: playlistData.body.images,
+        owner: playlistData.body.owner,
+        followers: playlistData.body.followers,
+        public: playlistData.body.public,
+        tracks: {
+          total: playlistData.body.tracks.total,
+          items: tracksData.body.items
+        },
+        external_urls: playlistData.body.external_urls
+      };
+    } catch (error) {
+      console.error("Get playlist details error:", error);
+      throw new Error("Failed to get playlist details");
+    }
+  }
+
   async getFeaturedContent(
     accessToken: string,
     country: string,

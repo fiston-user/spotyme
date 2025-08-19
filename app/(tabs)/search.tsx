@@ -21,6 +21,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { TrackCarousel } from '../../components/TrackCarousel';
 import { ArtistCarousel } from '../../components/ArtistCarousel';
 import { FeaturedSection } from '../../components/FeaturedSection';
+import { PlaylistPreviewModal } from '../../components/PlaylistPreviewModal';
+import { TrackPreviewModal } from '../../components/TrackPreviewModal';
 
 const { width: screenWidth } = Dimensions.get('window');
 
@@ -39,6 +41,12 @@ export default function SearchScreen() {
   const [newReleases, setNewReleases] = useState<any[]>([]);
   const [recommendationsLoading, setRecommendationsLoading] = useState(true);
   const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  
+  // Modal states
+  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
+  const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
+  const [selectedTrack, setSelectedTrack] = useState<any>(null);
+  const [trackModalVisible, setTrackModalVisible] = useState(false);
 
   // Transform Spotify track data to our Song interface
   const transformSpotifyTrack = (track: any): Song => {
@@ -114,13 +122,15 @@ export default function SearchScreen() {
   }, [searchQuery]);
 
   const handleSongPress = (song: Song) => {
-    // Navigate directly to playlist builder when song is clicked
-    router.push(`/playlist-builder/${song.id}`);
+    // Show track preview modal instead of navigating directly
+    setSelectedTrack(song);
+    setTrackModalVisible(true);
   };
 
   const handleTrackPress = (track: any) => {
-    // Navigate to playlist builder with track ID
-    router.push(`/playlist-builder/${track.id}`);
+    // Show track preview modal instead of navigating directly
+    setSelectedTrack(track);
+    setTrackModalVisible(true);
   };
 
   const handleArtistPress = (artist: any) => {
@@ -129,8 +139,8 @@ export default function SearchScreen() {
   };
 
   const handlePlaylistPress = (playlist: any) => {
-    // Could navigate to a playlist detail view or search for similar
-    Alert.alert('Featured Playlist', `${playlist.name}\n${playlist.description || 'Curated by Spotify'}`);
+    setSelectedPlaylist(playlist);
+    setPlaylistModalVisible(true);
   };
 
   const handleAlbumPress = (album: any) => {
@@ -146,9 +156,10 @@ export default function SearchScreen() {
 
     try {
       // Fetch all recommendations in parallel
+      // Using medium_term for better data availability
       const [tracksRes, artistsRes, featuredRes, releasesRes] = await Promise.all([
-        apiService.getTopTracks('short_term', 10).catch(err => ({ success: false, error: err })),
-        apiService.getTopArtists('short_term', 10).catch(err => ({ success: false, error: err })),
+        apiService.getTopTracks('medium_term', 10).catch(err => ({ success: false, error: err })),
+        apiService.getTopArtists('medium_term', 10).catch(err => ({ success: false, error: err })),
         apiService.getFeaturedContent('US', 10).catch(err => ({ success: false, error: err })),
         apiService.getNewReleases('US', 10).catch(err => ({ success: false, error: err })),
       ]);
@@ -161,9 +172,10 @@ export default function SearchScreen() {
       }
 
       if (artistsRes.success && artistsRes.data?.items) {
+        console.log(`Loaded ${artistsRes.data.items.length} top artists`);
         setTopArtists(artistsRes.data.items);
       } else {
-        console.log('Failed to load top artists');
+        console.log('Failed to load top artists:', artistsRes.error || 'No data');
       }
 
       if (featuredRes.success && featuredRes.data?.playlists?.items && featuredRes.data.playlists.items.length > 0) {
@@ -443,6 +455,31 @@ export default function SearchScreen() {
           </View>
         ) : null}
       </ScrollView>
+
+      {/* Playlist Preview Modal */}
+      {selectedPlaylist && (
+        <PlaylistPreviewModal
+          visible={playlistModalVisible}
+          onClose={() => {
+            setPlaylistModalVisible(false);
+            setSelectedPlaylist(null);
+          }}
+          playlistId={selectedPlaylist.id}
+          playlistBasicInfo={selectedPlaylist}
+        />
+      )}
+
+      {/* Track Preview Modal */}
+      {selectedTrack && (
+        <TrackPreviewModal
+          visible={trackModalVisible}
+          onClose={() => {
+            setTrackModalVisible(false);
+            setSelectedTrack(null);
+          }}
+          track={selectedTrack}
+        />
+      )}
     </View>
   );
 }

@@ -111,12 +111,12 @@ export const TrackCarousel: React.FC<TrackCarouselProps> = ({
               />
               <View style={styles.playButton}>
                 <LinearGradient
-                  colors={Colors.gradients.red as any}
+                  colors={Colors.gradients.green as any}
                   style={styles.playButtonGradient}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 1 }}
                 >
-                  <MaterialIcons name="play-arrow" size={20} color={Colors.text} />
+                  <MaterialIcons name="playlist-add" size={20} color={Colors.background} />
                 </LinearGradient>
               </View>
             </View>

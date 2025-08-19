@@ -56,6 +56,21 @@ router.get('/track/:id/features', async (req, res, next) => {
   }
 });
 
+router.get('/playlist/:id', async (req, res, next) => {
+  const { id } = req.params;
+  try {
+    console.log('Fetching playlist details for ID:', id);
+    const playlistDetails = await spotifyApiService.getPlaylistDetails(
+      req.session.accessToken!,
+      id
+    );
+    return res.json(playlistDetails);
+  } catch (error) {
+    console.error('Playlist details error for ID:', id, error);
+    return next(error);
+  }
+});
+
 router.get('/recommendations', async (req, res, next) => {
   try {
     const { seed_tracks, limit = 20, target_energy, target_valence } = req.query;
