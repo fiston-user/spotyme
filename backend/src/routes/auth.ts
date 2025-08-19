@@ -1,61 +1,117 @@
-import { Router } from 'express';
-import { spotifyAuthService } from '../services/spotifyAuth';
-import { userService } from '../services/userService';
+import { Router, Request, Response } from "express";
+import { spotifyAuthService } from "../services/spotifyAuth";
+import { userService } from "../services/userService";
+import { authValidation } from "../middleware/validation";
+import { authLimiter, loginAttemptLimiter } from "../middleware/rateLimiter";
+
+// Declare global type for mobile tokens storage
+declare global {
+  var mobileTokens: Record<string, {
+    accessToken: string;
+    refreshToken: string;
+    userId: string;
+    email: string;
+    displayName: string;
+    imageUrl?: string;
+    timestamp: number;
+  }> | undefined;
+}
 
 const router = Router();
 
-router.get('/login', (_req, res) => {
-  const authUrl = spotifyAuthService.getAuthorizationUrl();
-  res.json({ authUrl });
+router.get("/login", (req: Request, res: Response) => {
+  // Generate a new state for CSRF protection
+  const state = spotifyAuthService.generateState();
+  const authUrl = spotifyAuthService.getAuthorizationUrl(state);
+
+  // Store state in session for web clients
+  req.session.oauthState = state;
+
+  res.json({ authUrl, state });
 });
 
-router.get('/callback', async (req, res) => {
-  const { code, error } = req.query;
+router.get(
+  "/callback",
+  authLimiter,
+  loginAttemptLimiter,
+  authValidation.callback,
+  async (req: Request, res: Response) => {
+    const { code, error, state } = req.query;
 
-  if (error) {
-    return res.status(400).json({ error: 'Authorization failed' });
-  }
+    if (error) {
+      return res.status(400).json({ error: "Authorization failed" });
+    }
 
-  if (!code || typeof code !== 'string') {
-    return res.status(400).json({ error: 'Invalid authorization code' });
-  }
+    if (!code || typeof code !== "string") {
+      return res.status(400).json({ error: "Invalid authorization code" });
+    }
 
-  try {
-    const tokens = await spotifyAuthService.handleCallback(code);
-    const spotifyUser = await spotifyAuthService.getUserProfile(tokens.access_token);
-    
-    const user = await userService.findOrCreateUser({
-      spotifyId: spotifyUser.id,
-      email: spotifyUser.email,
-      displayName: spotifyUser.display_name,
-      imageUrl: spotifyUser.images?.[0]?.url,
-      accessToken: tokens.access_token,
-      refreshToken: tokens.refresh_token,
-      tokenExpiry: new Date(Date.now() + tokens.expires_in * 1000)
-    });
+    if (!state || typeof state !== "string") {
+      return res.status(400).json({ error: "State parameter missing" });
+    }
 
-    req.session.userId = (user._id as any).toString();
-    req.session.accessToken = tokens.access_token;
-    req.session.refreshToken = tokens.refresh_token;
+    // Validate state to prevent CSRF attacks
+    if (!spotifyAuthService.validateState(state)) {
+      return res
+        .status(400)
+        .json({ error: "Invalid or expired state parameter" });
+    }
 
-    // Create a deep link URL back to the app with the tokens
-    // Using the app's custom scheme for proper deep linking
-    const callbackUrl = `spotyme://callback?` + 
-      `accessToken=${encodeURIComponent(tokens.access_token)}&` +
-      `refreshToken=${encodeURIComponent(tokens.refresh_token)}&` +
-      `userId=${encodeURIComponent(user.spotifyId)}&` +
-      `email=${encodeURIComponent(user.email || '')}&` +
-      `displayName=${encodeURIComponent(user.displayName || '')}&` +
-      `imageUrl=${encodeURIComponent(user.imageUrl || '')}`;
+    try {
+      const tokens = await spotifyAuthService.handleCallback(code, state);
+      const spotifyUser = await spotifyAuthService.getUserProfile(
+        tokens.access_token
+      );
 
-    // Try to redirect to the app
-    // If the redirect doesn't work, show a success page with a manual redirect link
-    return res.send(`
+      const user = await userService.findOrCreateUser({
+        spotifyId: spotifyUser.id,
+        email: spotifyUser.email,
+        displayName: spotifyUser.display_name,
+        imageUrl: spotifyUser.images?.[0]?.url,
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        tokenExpiry: new Date(Date.now() + tokens.expires_in * 1000),
+      });
+
+      req.session.userId = (user._id as any).toString();
+      req.session.accessToken = tokens.access_token;
+      req.session.refreshToken = tokens.refresh_token;
+
+      // Always redirect to mobile app after OAuth
+      // Create a temporary session token for mobile
+      const mobileSessionToken = require('crypto').randomBytes(32).toString('hex');
+      
+      // Store tokens temporarily in memory (in production, use Redis)
+      if (!global.mobileTokens) {
+        global.mobileTokens = {};
+      }
+      global.mobileTokens[mobileSessionToken] = {
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+        userId: user.spotifyId,
+        email: user.email,
+        displayName: user.displayName,
+        imageUrl: user.imageUrl || '',
+        timestamp: Date.now()
+      };
+      
+      // Clean up old tokens after 5 minutes
+      setTimeout(() => {
+        if (global.mobileTokens) {
+          delete global.mobileTokens[mobileSessionToken];
+        }
+      }, 5 * 60 * 1000);
+      
+      // Create HTML page that will redirect to the app
+      // This ensures the redirect works from the OAuth browser
+      const appCallbackUrl = `spotyme://callback?sessionToken=${mobileSessionToken}`;
+      
+      return res.send(`
       <!DOCTYPE html>
       <html>
         <head>
           <title>Login Successful</title>
-          <meta http-equiv="refresh" content="0;url=${callbackUrl}">
+          <meta http-equiv="refresh" content="0;url=${appCallbackUrl}">
           <style>
             body {
               font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -80,6 +136,7 @@ router.get('/callback', async (req, res) => {
               text-decoration: none;
               font-weight: 600;
               display: inline-block;
+              margin-top: 20px;
             }
             .success-icon {
               font-size: 48px;
@@ -90,49 +147,106 @@ router.get('/callback', async (req, res) => {
         <body>
           <div class="success-icon">✓</div>
           <h1>Login Successful!</h1>
-          <p>You should be redirected to SpotYme automatically.</p>
-          <a href="${callbackUrl}">Open SpotYme</a>
+          <p>Redirecting to SpotYme...</p>
+          <a href="${appCallbackUrl}">Open SpotYme</a>
           <script>
-            // Try multiple redirect methods
-            window.location.href = "${callbackUrl}";
+            // Try multiple methods to redirect to the app
+            window.location.href = "${appCallbackUrl}";
+            
+            // Fallback methods
             setTimeout(() => {
-              window.location.replace("${callbackUrl}");
+              window.location.replace("${appCallbackUrl}");
             }, 100);
+            
+            // If still on page after 2 seconds, show manual link
+            setTimeout(() => {
+              document.querySelector('a').style.display = 'inline-block';
+            }, 2000);
           </script>
         </body>
       </html>
     `);
-  } catch (error) {
-    console.error('Callback error:', error);
-    return res.status(500).json({ error: 'Failed to authenticate' });
+    } catch (error) {
+      console.error("Callback error:", error);
+      return res.status(500).json({ error: "Failed to authenticate" });
+    }
   }
-});
+);
 
-router.post('/refresh', async (req, res) => {
-  const { refreshToken } = req.body;
+// Secure token exchange endpoint for mobile apps
+router.post(
+  "/exchange",
+  authValidation.exchange,
+  async (req: Request, res: Response) => {
+    const { sessionToken } = req.body;
 
-  if (!refreshToken) {
-    return res.status(400).json({ error: 'Refresh token required' });
-  }
+    if (!sessionToken) {
+      return res.status(401).json({ error: "Session token required" });
+    }
 
-  try {
-    const tokens = await spotifyAuthService.refreshAccessToken(refreshToken);
+    // Retrieve tokens from temporary storage
+    const tokenData = global.mobileTokens?.[sessionToken];
+    
+    if (!tokenData) {
+      return res.status(401).json({ error: "Invalid or expired session token" });
+    }
+    
+    // Check if token is not too old (5 minutes)
+    if (Date.now() - tokenData.timestamp > 5 * 60 * 1000) {
+      if (global.mobileTokens) {
+        delete global.mobileTokens[sessionToken];
+      }
+      return res.status(401).json({ error: "Session token expired" });
+    }
+
+    // Delete token after use (one-time use)
+    if (global.mobileTokens) {
+      delete global.mobileTokens[sessionToken];
+    }
+
+    // Return tokens securely via POST response body
     return res.json({
-      accessToken: tokens.access_token,
-      expiresIn: tokens.expires_in
+      accessToken: tokenData.accessToken,
+      refreshToken: tokenData.refreshToken,
+      user: {
+        userId: tokenData.userId,
+        email: tokenData.email,
+        displayName: tokenData.displayName,
+        imageUrl: tokenData.imageUrl,
+      }
     });
-  } catch (error) {
-    console.error('Token refresh error:', error);
-    return res.status(401).json({ error: 'Failed to refresh token' });
   }
-});
+);
 
-router.post('/logout', (req, res) => {
+router.post(
+  "/refresh",
+  authValidation.refresh,
+  async (req: Request, res: Response) => {
+    const { refreshToken } = req.body;
+
+    if (!refreshToken) {
+      return res.status(400).json({ error: "Refresh token required" });
+    }
+
+    try {
+      const tokens = await spotifyAuthService.refreshAccessToken(refreshToken);
+      return res.json({
+        accessToken: tokens.access_token,
+        expiresIn: tokens.expires_in,
+      });
+    } catch (error) {
+      console.error("Token refresh error:", error);
+      return res.status(401).json({ error: "Failed to refresh token" });
+    }
+  }
+);
+
+router.post("/logout", (req, res) => {
   req.session.destroy((err) => {
     if (err) {
-      return res.status(500).json({ error: 'Failed to logout' });
+      return res.status(500).json({ error: "Failed to logout" });
     }
-    return res.json({ message: 'Logged out successfully' });
+    return res.json({ message: "Logged out successfully" });
   });
 });
 

@@ -34,16 +34,40 @@ app.use(
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Generate secure session secret if not provided
+const getSessionSecret = (): string => {
+  const secret = process.env.SESSION_SECRET;
+  if (!secret || secret.length < 32) {
+    console.error('WARNING: SESSION_SECRET is missing or too short!');
+    console.error('Please set a secure SESSION_SECRET in your environment variables');
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('SESSION_SECRET is required in production');
+    }
+    // Only for development - generate a temporary secret
+    return require('crypto').randomBytes(32).toString('hex');
+  }
+  return secret;
+};
+
 app.use(
   session({
-    secret: process.env.SESSION_SECRET || "default-secret-change-in-production",
+    secret: getSessionSecret(),
+    name: 'spotyme.sid', // Custom session name to avoid fingerprinting
     resave: false,
     saveUninitialized: false,
+    rolling: true, // Reset expiry on activity
     cookie: {
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
+      secure: process.env.NODE_ENV === "production", // HTTPS only in production
+      httpOnly: true, // Prevent XSS attacks
+      sameSite: 'strict', // CSRF protection
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
+      domain: process.env.COOKIE_DOMAIN || undefined,
     },
+    // Add session store configuration for production
+    // In production, use Redis or MongoDB session store
+    ...(process.env.NODE_ENV === 'production' && {
+      proxy: true, // Trust proxy in production
+    }),
   })
 );
 

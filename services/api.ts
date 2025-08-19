@@ -23,8 +23,15 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        // Don't try to refresh if we're already handling a 401
+        // Handle authentication errors
         if (response.status === 401) {
+          // Clear auth state to trigger redirect to login
+          await AsyncStorage.multiRemove([
+            "spotify_access_token",
+            "spotify_refresh_token",
+            "is_authenticated",
+          ]);
+          
           return {
             success: false,
             error: "Session expired. Please login again.",
@@ -33,7 +40,7 @@ class ApiService {
 
         return {
           success: false,
-          error: data.error || `Request failed with status ${response.status}`,
+          error: data.error?.message || data.error || `Request failed with status ${response.status}`,
         };
       }
 

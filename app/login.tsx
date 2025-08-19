@@ -18,7 +18,6 @@ import { Colors } from "../constants/Colors";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 // Using ngrok URL for Spotify OAuth callback support
 const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
@@ -31,14 +30,14 @@ export default function LoginScreen() {
 
   useEffect(() => {
     // Handle deep link when app returns from browser
-    const handleDeepLink = (url: string) => {
+    const handleDeepLink = async (url: string) => {
       if (url.includes("spotyme://callback")) {
+        // For mobile app, we need to exchange the session token for actual tokens
         const urlObj = new URL(url);
-        const accessToken = urlObj.searchParams.get("accessToken");
-        const refreshToken = urlObj.searchParams.get("refreshToken");
+        const sessionToken = urlObj.searchParams.get("sessionToken");
 
-        if (accessToken && refreshToken) {
-          handleTokens(accessToken, refreshToken);
+        if (sessionToken) {
+          await exchangeSessionToken(sessionToken);
         }
       }
     };
@@ -59,6 +58,45 @@ export default function LoginScreen() {
       subscription.remove();
     };
   }, []);
+
+  const exchangeSessionToken = async (sessionToken: string) => {
+    try {
+      setIsLoading(true);
+      
+      // Exchange session token for actual tokens using the secure endpoint
+      const response = await fetch(`${API_BASE_URL}/auth/exchange`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ sessionToken }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.accessToken && data.refreshToken) {
+          await handleTokens(data.accessToken, data.refreshToken);
+          
+          // Also store user info if provided
+          if (data.user) {
+            await AsyncStorage.setItem("user_info", JSON.stringify(data.user));
+          }
+        } else {
+          throw new Error("Failed to get tokens from exchange");
+        }
+      } else {
+        throw new Error("Failed to exchange session token");
+      }
+    } catch (error) {
+      console.error("Session token exchange error:", error);
+      Alert.alert(
+        "Authentication Failed",
+        "Unable to complete authentication. Please try again."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleTokens = async (accessToken: string, refreshToken: string) => {
     try {
@@ -98,16 +136,15 @@ export default function LoginScreen() {
       console.log("Auth result:", result);
 
       if (result.type === "success" && result.url) {
-        // Parse the callback URL to extract tokens
+        // Parse the callback URL to get the session token
         const url = new URL(result.url);
-        const accessToken = url.searchParams.get("accessToken");
-        const refreshToken = url.searchParams.get("refreshToken");
-
-        if (accessToken && refreshToken) {
-          // Use the shared handler
-          await handleTokens(accessToken, refreshToken);
+        const sessionToken = url.searchParams.get("sessionToken");
+        
+        if (sessionToken) {
+          // Exchange the session token for actual tokens
+          await exchangeSessionToken(sessionToken);
         } else {
-          throw new Error("Failed to get tokens from callback");
+          throw new Error("No session token in callback URL");
         }
       } else if (result.type === "dismiss") {
         console.log("User dismissed the auth flow");

@@ -25,9 +25,10 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({
   playlist, 
   onPress 
 }) => {
-  const formatDuration = (seconds: number) => {
-    const hours = Math.floor(seconds / 3600);
-    const mins = Math.floor((seconds % 3600) / 60);
+  const formatDuration = (milliseconds: number) => {
+    const totalSeconds = Math.floor(milliseconds / 1000);
+    const hours = Math.floor(totalSeconds / 3600);
+    const mins = Math.floor((totalSeconds % 3600) / 60);
     if (hours > 0) {
       return `${hours}h ${mins}m`;
     }

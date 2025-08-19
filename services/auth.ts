@@ -62,6 +62,12 @@ export const authService = {
     let accessToken = await this.getAccessToken();
     
     if (!accessToken) {
+      // Clear auth state if no token
+      await AsyncStorage.multiRemove([
+        'spotify_access_token',
+        'spotify_refresh_token',
+        'is_authenticated',
+      ]);
       throw new Error('No access token available');
     }
 
@@ -85,6 +91,13 @@ export const authService = {
         if (accessToken) {
           response = await makeRequest(accessToken);
         }
+      } else {
+        // If refresh failed, clear auth state
+        await AsyncStorage.multiRemove([
+          'spotify_access_token',
+          'spotify_refresh_token',
+          'is_authenticated',
+        ]);
       }
     }
 

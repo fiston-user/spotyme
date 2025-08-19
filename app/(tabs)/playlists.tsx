@@ -201,9 +201,23 @@ export default function PlaylistsScreen() {
                     <MaterialIcons name="schedule" size={24} color="#8B5CF6" />
                     <View style={styles.statInfo}>
                       <Text style={[styles.statNumber, { color: '#8B5CF6' }]}>
-                        {Math.floor(playlists.reduce((acc, p) => acc + (p.totalDuration || 0), 0) / 60)}
+                        {(() => {
+                          const totalMs = playlists.reduce((acc, p) => acc + (p.totalDuration || 0), 0);
+                          const totalMinutes = Math.floor(totalMs / 60000);
+                          const hours = Math.floor(totalMinutes / 60);
+                          const minutes = totalMinutes % 60;
+                          if (hours > 0) {
+                            return `${hours}h ${minutes}m`;
+                          }
+                          return `${minutes}`;
+                        })()}
                       </Text>
-                      <Text style={styles.statLabel}>Minutes</Text>
+                      <Text style={styles.statLabel}>{(() => {
+                        const totalMs = playlists.reduce((acc, p) => acc + (p.totalDuration || 0), 0);
+                        const totalMinutes = Math.floor(totalMs / 60000);
+                        const hours = Math.floor(totalMinutes / 60);
+                        return hours > 0 ? 'Duration' : 'Minutes';
+                      })()}</Text>
                     </View>
                   </View>
                 </LinearGradient>

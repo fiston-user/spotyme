@@ -3,7 +3,8 @@ import crypto from 'crypto';
 
 class SpotifyAuthService {
   private spotifyApi: SpotifyWebApi;
-  private state: string;
+  private stateStore: Map<string, { timestamp: number; used: boolean }> = new Map();
+  private readonly STATE_EXPIRY = 10 * 60 * 1000; // 10 minutes
 
   constructor() {
     const clientId = process.env.SPOTIFY_CLIENT_ID;
@@ -21,10 +22,55 @@ class SpotifyAuthService {
       clientSecret: clientSecret,
       redirectUri: redirectUri
     });
-    this.state = crypto.randomBytes(16).toString('hex');
+
+    // Clean up expired states every 5 minutes
+    setInterval(() => this.cleanupExpiredStates(), 5 * 60 * 1000);
   }
 
-  getAuthorizationUrl(): string {
+  private cleanupExpiredStates(): void {
+    const now = Date.now();
+    for (const [state, data] of this.stateStore.entries()) {
+      if (now - data.timestamp > this.STATE_EXPIRY) {
+        this.stateStore.delete(state);
+      }
+    }
+  }
+
+  generateState(): string {
+    const state = crypto.randomBytes(32).toString('hex');
+    this.stateStore.set(state, { timestamp: Date.now(), used: false });
+    return state;
+  }
+
+  validateState(state: string): boolean {
+    const stateData = this.stateStore.get(state);
+    if (!stateData) {
+      console.error('State not found in store');
+      return false;
+    }
+
+    if (stateData.used) {
+      console.error('State has already been used');
+      return false;
+    }
+
+    if (Date.now() - stateData.timestamp > this.STATE_EXPIRY) {
+      console.error('State has expired');
+      this.stateStore.delete(state);
+      return false;
+    }
+
+    // Mark state as used
+    stateData.used = true;
+    this.stateStore.set(state, stateData);
+    
+    // Delete state after validation to prevent reuse
+    setTimeout(() => this.stateStore.delete(state), 1000);
+    
+    return true;
+  }
+
+  getAuthorizationUrl(state?: string): string {
     const scopes = [
       'user-read-private',
       'user-read-email',
@@ -37,12 +83,13 @@ class SpotifyAuthService {
       'user-library-modify'
     ];
 
-    const authUrl = this.spotifyApi.createAuthorizeURL(scopes, this.state);
-    console.log('Generated auth URL:', authUrl);
+    const authState = state || this.generateState();
+    const authUrl = this.spotifyApi.createAuthorizeURL(scopes, authState);
+    console.log('Generated auth URL with state:', authState);
     return authUrl;
   }
 
-  async handleCallback(code: string): Promise<{
+  async handleCallback(code: string, _state?: string): Promise<{
     access_token: string;
     refresh_token: string;
     expires_in: number;
