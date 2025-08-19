@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Animated,
 } from "react-native";
 import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -15,6 +16,7 @@ import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../constants/Colors";
+import LoginBackgroundImage from "../components/LoginBackgroundImage";
 
 WebBrowser.maybeCompleteAuthSession();
 
@@ -27,6 +29,52 @@ const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 export default function LoginScreen() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Animation values
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(50)).current;
+  const scaleAnim = useRef(new Animated.Value(0.9)).current;
+  const buttonPulse = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // Entrance animations
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 1200,
+        delay: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 0,
+        duration: 1000,
+        delay: 500,
+        useNativeDriver: true,
+      }),
+      Animated.timing(scaleAnim, {
+        toValue: 1,
+        duration: 1000,
+        delay: 500,
+        useNativeDriver: true,
+      }),
+    ]).start();
+
+    // Button pulse animation
+    Animated.loop(
+      Animated.sequence([
+        Animated.timing(buttonPulse, {
+          toValue: 1.02,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(buttonPulse, {
+          toValue: 1,
+          duration: 2000,
+          useNativeDriver: true,
+        }),
+      ])
+    ).start();
+  }, []);
 
   useEffect(() => {
     // Handle deep link when app returns from browser
@@ -162,23 +210,38 @@ export default function LoginScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Subtle gradient background */}
-      <LinearGradient
-        colors={[Colors.background, "rgba(29, 185, 84, 0.02)", Colors.background]}
-        style={StyleSheet.absoluteFillObject}
-      />
+      {/* Enhanced background with images */}
+      <LoginBackgroundImage />
 
-      <View style={styles.content}>
+      <Animated.View 
+        style={[
+          styles.content,
+          {
+            opacity: fadeAnim,
+            transform: [
+              { translateY: slideAnim },
+              { scale: scaleAnim }
+            ]
+          }
+        ]}
+      >
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <View style={styles.logoContainer}>
+          <Animated.View 
+            style={[
+              styles.logoContainer,
+              {
+                transform: [{ scale: scaleAnim }]
+              }
+            ]}
+          >
             <LinearGradient
               colors={Colors.gradients.green as any}
               style={styles.logoBackground}
             >
               <MaterialIcons name="library-music" size={40} color={Colors.background} />
             </LinearGradient>
-          </View>
+          </Animated.View>
           
           <Text style={styles.appName}>SpotYme</Text>
           <Text style={styles.tagline}>Your AI music companion</Text>
@@ -186,37 +249,48 @@ export default function LoginScreen() {
 
         {/* Login Button */}
         <View style={styles.ctaSection}>
-          <TouchableOpacity
-            style={styles.loginButton}
-            onPress={handleSpotifyLogin}
-            disabled={isLoading}
-            activeOpacity={0.8}
+          <Animated.View
+            style={[
+              styles.loginButton,
+              {
+                transform: [{ scale: buttonPulse }]
+              }
+            ]}
           >
-            <LinearGradient
-              colors={isLoading ? [Colors.surface, Colors.surface] : (Colors.gradients.green as any)}
-              style={styles.loginButtonGradient}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
+            <TouchableOpacity
+              onPress={handleSpotifyLogin}
+              disabled={isLoading}
+              activeOpacity={0.8}
+              style={styles.touchableButton}
             >
-              {isLoading ? (
-                <ActivityIndicator size="small" color={Colors.text} />
-              ) : (
-                <>
-                  <MaterialIcons name="music-note" size={20} color={Colors.background} />
-                  <Text style={styles.loginButtonText}>Continue with Spotify</Text>
-                </>
-              )}
-            </LinearGradient>
-          </TouchableOpacity>
+              <LinearGradient
+                colors={isLoading ? [Colors.surface, Colors.surface] : (Colors.gradients.green as any)}
+                style={styles.loginButtonGradient}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 0 }}
+              >
+                {isLoading ? (
+                  <ActivityIndicator size="small" color={Colors.text} />
+                ) : (
+                  <View style={styles.buttonContent}>
+                    <MaterialIcons name="music-note" size={20} color={Colors.background} />
+                    <Text style={styles.loginButtonText} numberOfLines={1}>Continue with Spotify</Text>
+                  </View>
+                )}
+              </LinearGradient>
+            </TouchableOpacity>
+          </Animated.View>
 
           <Text style={styles.disclaimer}>
             Secure login via Spotify
           </Text>
         </View>
-      </View>
+      </Animated.View>
     </View>
   );
 }
+
+const { width } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -235,53 +309,85 @@ const styles = StyleSheet.create({
     marginBottom: 80,
   },
   logoContainer: {
-    marginBottom: 20,
+    marginBottom: 24,
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
   },
   logoBackground: {
-    width: 80,
-    height: 80,
-    borderRadius: 24,
+    width: 88,
+    height: 88,
+    borderRadius: 28,
     justifyContent: "center",
     alignItems: "center",
   },
   appName: {
-    fontSize: 42,
+    fontSize: 46,
     fontWeight: "bold",
     color: Colors.text,
     marginBottom: 8,
-    letterSpacing: -0.5,
+    letterSpacing: -1,
+    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
   tagline: {
-    fontSize: 15,
+    fontSize: 16,
     color: Colors.textSecondary,
+    letterSpacing: 0.5,
   },
   
   // CTA Section
   ctaSection: {
     alignItems: "center",
+    width: '100%',
   },
   loginButton: {
-    width: "100%",
-    maxWidth: 320,
-    borderRadius: 24,
-    overflow: "hidden",
+    width: '100%',
+    maxWidth: Math.min(320, width - 48), // Responsive width
+    shadowColor: Colors.primary,
+    shadowOffset: {
+      width: 0,
+      height: 6,
+    },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  touchableButton: {
+    width: '100%',
   },
   loginButtonGradient: {
-    flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 16,
     paddingHorizontal: 24,
+    borderRadius: 28,
+    minHeight: 56, // Consistent height
+  },
+  buttonContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 8,
+    width: '100%',
   },
   loginButtonText: {
     fontSize: 16,
     fontWeight: "600",
     color: Colors.background,
+    letterSpacing: 0.3,
+    flexShrink: 1, // Allow text to shrink if needed
   },
   disclaimer: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textTertiary,
-    marginTop: 16,
+    marginTop: 20,
+    letterSpacing: 0.2,
   },
 });

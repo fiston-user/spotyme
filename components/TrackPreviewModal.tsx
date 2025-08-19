@@ -164,7 +164,7 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
                   <MaterialIcons name="close" size={20} color={Colors.text} />
                 </BlurView>
               </TouchableOpacity>
-              <Text style={styles.headerTitle}>Track Options</Text>
+              {/* <Text style={styles.headerTitle}>Track Options</Text> */}
               <View style={{ width: 36 }} />
             </View>
 
