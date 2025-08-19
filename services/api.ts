@@ -321,6 +321,7 @@ class ApiService {
       limit?: number;
       targetEnergy?: number;
       targetValence?: number;
+      generateSmartTitle?: boolean;
     };
   }) {
     try {

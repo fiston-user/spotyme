@@ -347,13 +347,13 @@ export default function PlaylistDetailScreen() {
             </TouchableOpacity>
           </View>
           
-          {playlist.tracks?.map((track: any, index: number) => (
+          {playlist.tracks && playlist.tracks.length > 0 ? playlist.tracks.map((track: any, index: number) => (
             <TouchableOpacity
               key={track.spotifyId || index}
               style={[
                 styles.trackRow,
                 index === 0 && styles.firstTrack,
-                index === playlist.tracks.length - 1 && styles.lastTrack
+                index === (playlist.tracks?.length || 0) - 1 && styles.lastTrack
               ]}
               activeOpacity={0.7}
             >
@@ -382,7 +382,12 @@ export default function PlaylistDetailScreen() {
                 <MaterialIcons name="more-horiz" size={20} color={Colors.textSecondary} />
               </TouchableOpacity>
             </TouchableOpacity>
-          ))}
+          )) : (
+            <View style={styles.emptyTracksState}>
+              <MaterialIcons name="music-off" size={48} color={Colors.textTertiary} />
+              <Text style={styles.emptyStateText}>No tracks in this playlist yet</Text>
+            </View>
+          )}
         </View>
         
         {/* Bottom Spacing */}
@@ -646,5 +651,15 @@ const styles = StyleSheet.create({
   },
   trackMoreButton: {
     padding: 4,
+  },
+  emptyTracksState: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+  },
+  emptyStateText: {
+    marginTop: 12,
+    fontSize: 16,
+    color: Colors.textSecondary,
   },
 });

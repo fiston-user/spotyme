@@ -40,6 +40,7 @@ router.post(
             name: name || "SpotYme Generated Playlist",
             description: description || "Created with SpotYme",
             seedTracks,
+            generateSmartTitle: options?.generateSmartTitle,
             ...options,
           }
         );
@@ -54,6 +55,7 @@ router.post(
         {
           name: name || "SpotYme Generated Playlist",
           description: description || "Created with SpotYme",
+          generateSmartTitle: options?.generateSmartTitle,
           ...options,
         }
       );

@@ -73,13 +73,18 @@ export const TrackPreviewModal: React.FC<TrackPreviewModalProps> = ({
   const handleQuickAdd = async () => {
     setIsCreatingPlaylist(true);
     try {
+      // Get track details for naming
+      const trackName = track.name || track.title || 'Unknown Track';
+      const artistName = track.artists?.map((a: any) => a.name).join(', ') || track.artist || 'Unknown Artist';
+      
       // Create a quick playlist with AI recommendations based on this track
       const response = await apiService.generatePlaylist({
         seedTracks: [track.id],
-        name: `Mix based on ${track.name}`,
-        description: `AI-generated playlist based on "${track.name}" by ${track.artists?.map((a: any) => a.name).join(', ')}`,
+        name: `Mix inspired by ${trackName}`,
+        description: `AI-curated playlist based on "${trackName}" by ${artistName}`,
         options: {
           limit: 20,
+          generateSmartTitle: true, // Request AI-generated title
         },
       });
 

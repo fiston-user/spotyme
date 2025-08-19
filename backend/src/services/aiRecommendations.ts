@@ -12,6 +12,129 @@ class AIRecommendationService {
     }
   }
 
+  async generateAIPlaylistTitle(
+    seedTrack: any,
+    targetEnergy?: number,
+    targetValence?: number,
+    trackCount: number = 20
+  ): Promise<string> {
+    if (!this.openai) {
+      // Fallback to algorithmic generation if no OpenAI
+      return this.generateFallbackTitle(seedTrack, targetEnergy, targetValence);
+    }
+
+    try {
+      const energyDesc = targetEnergy 
+        ? targetEnergy > 0.7 ? 'high-energy' 
+        : targetEnergy < 0.3 ? 'chill' 
+        : 'balanced energy'
+        : 'mixed energy';
+      
+      const moodDesc = targetValence
+        ? targetValence > 0.7 ? 'uplifting'
+        : targetValence < 0.3 ? 'melancholic'
+        : 'emotional'
+        : 'diverse mood';
+
+      const prompt = `Create a creative, catchy playlist title for a ${trackCount}-track collection inspired by "${seedTrack.name}" by ${seedTrack.artists[0].name}.
+      The playlist has ${energyDesc} and ${moodDesc} vibes.
+      
+      Requirements:
+      - Maximum 5 words
+      - Creative and memorable
+      - Avoid generic words like "playlist", "mix", "collection"
+      - Capture the essence of the music
+      
+      Return ONLY the title, nothing else.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a creative music curator who creates memorable playlist titles. Return only the title text, no quotes, no explanation."
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.9,
+        max_tokens: 50,
+      });
+
+      const title = completion.choices[0].message.content?.trim() || this.generateFallbackTitle(seedTrack, targetEnergy, targetValence);
+      return title;
+    } catch (error) {
+      console.error('AI title generation failed:', error);
+      return this.generateFallbackTitle(seedTrack, targetEnergy, targetValence);
+    }
+  }
+
+  async generateAIPlaylistDescription(
+    seedTrack: any,
+    recommendations: any[],
+    targetEnergy?: number,
+    targetValence?: number
+  ): Promise<string> {
+    if (!this.openai) {
+      return this.generateFallbackDescription(seedTrack, recommendations.length, targetEnergy, targetValence);
+    }
+
+    try {
+      // Get a few artist names from recommendations for context
+      const featuredArtists = [...new Set(recommendations.slice(0, 5).map(t => t.artists?.[0]?.name || 'Unknown'))]
+        .filter(a => a !== 'Unknown')
+        .slice(0, 3)
+        .join(', ');
+
+      const prompt = `Write a compelling 1-2 sentence description for a playlist with ${recommendations.length} tracks inspired by "${seedTrack.name}" by ${seedTrack.artists[0].name}.
+      ${featuredArtists ? `Features music similar to: ${featuredArtists}.` : ''}
+      Energy level: ${targetEnergy ? Math.round(targetEnergy * 100) : 50}%
+      Mood: ${targetValence ? Math.round(targetValence * 100) : 50}% positive
+      
+      Make it enticing and describe the musical journey. Return only the description text.`;
+
+      const completion = await this.openai.chat.completions.create({
+        model: "gpt-3.5-turbo",
+        messages: [
+          { 
+            role: "system", 
+            content: "You are a music journalist writing playlist descriptions. Be concise, evocative, and focus on the listening experience."
+          },
+          { role: "user", content: prompt }
+        ],
+        temperature: 0.8,
+        max_tokens: 100,
+      });
+
+      const description = completion.choices[0].message.content?.trim() || 
+        this.generateFallbackDescription(seedTrack, recommendations.length, targetEnergy, targetValence);
+      return description;
+    } catch (error) {
+      console.error('AI description generation failed:', error);
+      return this.generateFallbackDescription(seedTrack, recommendations.length, targetEnergy, targetValence);
+    }
+  }
+
+  private generateFallbackTitle(seedTrack: any, targetEnergy?: number, targetValence?: number): string {
+    const artist = seedTrack.artists?.[0]?.name || 'Artist';
+    const energy = targetEnergy || 0.5;
+    const valence = targetValence || 0.5;
+    
+    if (energy > 0.7 && valence > 0.7) return `${artist}'s Happy Energy`;
+    if (energy > 0.7 && valence < 0.3) return `Dark ${artist} Power`;
+    if (energy < 0.3 && valence > 0.7) return `${artist} Chill Bliss`;
+    if (energy < 0.3 && valence < 0.3) return `${artist} Midnight Mood`;
+    return `${artist} Inspired Journey`;
+  }
+
+  private generateFallbackDescription(seedTrack: any, trackCount: number, targetEnergy?: number, targetValence?: number): string {
+    const energy = targetEnergy || 0.5;
+    const valence = targetValence || 0.5;
+    const moodText = valence > 0.6 ? 'uplifting' : valence < 0.4 ? 'introspective' : 'dynamic';
+    const energyText = energy > 0.6 ? 'energetic' : energy < 0.4 ? 'relaxed' : 'balanced';
+    
+    return `${trackCount} ${energyText} and ${moodText} tracks inspired by "${seedTrack.name}" by ${seedTrack.artists?.[0]?.name || 'various artists'}. A carefully curated musical journey.`;
+  }
+
   async getAIRecommendations(
     accessToken: string,
     seedTrack: any,
