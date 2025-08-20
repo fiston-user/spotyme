@@ -2,24 +2,35 @@ import pino from 'pino';
 
 const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NODE_ENV === undefined;
 const isTest = process.env.NODE_ENV === 'test';
+const isProduction = process.env.NODE_ENV === 'production';
+
+// Only use pino-pretty in development when it's available
+let transport;
+if (isDevelopment && !isTest && !isProduction) {
+  try {
+    // Check if pino-pretty is available
+    require.resolve('pino-pretty');
+    transport = {
+      target: 'pino-pretty',
+      options: {
+        colorize: true,
+        ignore: 'pid,hostname',
+        translateTime: 'yyyy-mm-dd HH:MM:ss',
+        messageFormat: '{msg}',
+        errorLikeObjectKeys: ['err', 'error'],
+        levelFirst: true,
+        minimumLevel: process.env.LOG_LEVEL || 'debug',
+      }
+    };
+  } catch {
+    // pino-pretty not available, use default transport
+    transport = undefined;
+  }
+}
 
 const logger = pino({
   level: process.env.LOG_LEVEL || (isDevelopment ? 'debug' : 'info'),
-  // Pretty output for development
-  transport: isDevelopment && !isTest
-    ? {
-        target: 'pino-pretty',
-        options: {
-          colorize: true,
-          ignore: 'pid,hostname',
-          translateTime: 'yyyy-mm-dd HH:MM:ss',
-          messageFormat: '{msg}',
-          errorLikeObjectKeys: ['err', 'error'],
-          levelFirst: true,
-          minimumLevel: process.env.LOG_LEVEL || 'debug',
-        }
-      }
-    : undefined,
+  transport,
   // Add context information
   base: {
     env: process.env.NODE_ENV || 'development',

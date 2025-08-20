@@ -30,10 +30,8 @@ export const connectDB = async (): Promise<void> => {
       socketTimeoutMS: 45000,
     };
     
-    // Only add authSource if there's authentication in the URI
-    if (uri.includes('@')) {
-      connectionOptions.authSource = 'admin';
-    }
+    // Don't override authSource if it's already in the URI
+    // The authSource should be specified in the connection string itself
     
     await mongoose.connect(uri, connectionOptions);
     
