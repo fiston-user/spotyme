@@ -19,6 +19,7 @@ interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;
   isLoading: boolean;
+  isHydrated: boolean; // Track if store has been hydrated from storage
   error: string | null;
   
   // Actions
@@ -29,6 +30,7 @@ interface AuthState {
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: User) => void;
   clearError: () => void;
+  setHydrated: () => void;
 }
 
 const useAuthStore = create<AuthState>()(
@@ -38,7 +40,8 @@ const useAuthStore = create<AuthState>()(
       user: null,
       accessToken: null,
       refreshToken: null,
-      isLoading: true, // Start with loading true
+      isLoading: false,
+      isHydrated: false,
       error: null,
 
       login: async (accessToken: string, refreshToken: string) => {
@@ -148,6 +151,7 @@ const useAuthStore = create<AuthState>()(
       },
 
       checkAuthStatus: async () => {
+        set({ isLoading: true });
         try {
           const [
             [, isAuth],
@@ -177,6 +181,7 @@ const useAuthStore = create<AuthState>()(
             });
           }
         } catch (error) {
+          console.error('Auth check error:', error);
           set({
             isAuthenticated: false,
             error: 'Failed to check authentication status',
@@ -196,6 +201,10 @@ const useAuthStore = create<AuthState>()(
       clearError: () => {
         set({ error: null });
       },
+
+      setHydrated: () => {
+        set({ isHydrated: true });
+      },
     }),
     {
       name: 'auth-storage',
@@ -206,6 +215,10 @@ const useAuthStore = create<AuthState>()(
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Called when hydration finishes
+        state?.setHydrated();
+      },
     }
   )
 );

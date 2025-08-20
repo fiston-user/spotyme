@@ -26,7 +26,6 @@ const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 // const API_BASE_URL = "http://localhost:3000";
 
 export default function LoginScreen() {
-  const router = useRouter();
   const { login, isLoading, isAuthenticated } = useAuthStore();
   const { showToast } = useUIStore();
   const [localLoading, setLocalLoading] = useState(false);

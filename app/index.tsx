@@ -1,19 +1,13 @@
 import { Redirect } from "expo-router";
 import { View, ActivityIndicator } from "react-native";
-import { useEffect } from "react";
 import { useAuthStore } from "../stores";
 import { Colors } from "../constants/Colors";
 
 export default function Index() {
-  const { isAuthenticated, isLoading, checkAuthStatus } = useAuthStore();
+  const { isAuthenticated, isHydrated } = useAuthStore();
 
-  useEffect(() => {
-    // Check auth status on mount
-    checkAuthStatus();
-  }, []);
-
-  // Show loading while checking auth
-  if (isLoading) {
+  // Wait for store to hydrate from AsyncStorage
+  if (!isHydrated) {
     return (
       <View
         style={{

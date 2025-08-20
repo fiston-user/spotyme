@@ -5,18 +5,12 @@ import { View, Platform, ActivityIndicator } from 'react-native';
 import { BlurView } from 'expo-blur';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuthStore } from '../../stores';
-import { useEffect } from 'react';
 
 export default function TabLayout() {
-  const { isAuthenticated, isLoading, checkAuthStatus } = useAuthStore();
+  const { isAuthenticated, isHydrated } = useAuthStore();
 
-  useEffect(() => {
-    // Check auth status when tabs mount
-    checkAuthStatus();
-  }, []);
-
-  // Show loading while checking auth
-  if (isLoading) {
+  // Wait for store to hydrate
+  if (!isHydrated) {
     return (
       <View style={{ flex: 1, backgroundColor: Colors.background, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={Colors.primary} />
