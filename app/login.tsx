@@ -9,17 +9,16 @@ import {
   Dimensions,
   Animated,
 } from "react-native";
-import { useRouter } from "expo-router";
+import { useRouter, Redirect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Colors } from "../constants/Colors";
 import LoginBackgroundImage from "../components/LoginBackgroundImage";
+import { useAuthStore, useUIStore } from "../stores";
 
 WebBrowser.maybeCompleteAuthSession();
-
 
 // Using ngrok URL for Spotify OAuth callback support
 const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
@@ -28,9 +27,11 @@ const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 
 export default function LoginScreen() {
   const router = useRouter();
-  const [isLoading, setIsLoading] = useState(false);
-  
-  // Animation values
+  const { login, isLoading, isAuthenticated } = useAuthStore();
+  const { showToast } = useUIStore();
+  const [localLoading, setLocalLoading] = useState(false);
+
+  // Animation values - must be declared before any returns
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
@@ -109,8 +110,8 @@ export default function LoginScreen() {
 
   const exchangeSessionToken = async (sessionToken: string) => {
     try {
-      setIsLoading(true);
-      
+      setLocalLoading(true);
+
       // Exchange session token for actual tokens using the secure endpoint
       const response = await fetch(`${API_BASE_URL}/auth/exchange`, {
         method: "POST",
@@ -123,12 +124,10 @@ export default function LoginScreen() {
       if (response.ok) {
         const data = await response.json();
         if (data.accessToken && data.refreshToken) {
-          await handleTokens(data.accessToken, data.refreshToken);
-          
-          // Also store user info if provided
-          if (data.user) {
-            await AsyncStorage.setItem("user_info", JSON.stringify(data.user));
-          }
+          // Use Zustand store to handle login
+          await login(data.accessToken, data.refreshToken);
+          showToast("Successfully logged in!", "success");
+          // Navigation will happen automatically via auth state change
         } else {
           throw new Error("Failed to get tokens from exchange");
         }
@@ -137,31 +136,15 @@ export default function LoginScreen() {
       }
     } catch (error) {
       console.error("Session token exchange error:", error);
-      Alert.alert(
-        "Authentication Failed",
-        "Unable to complete authentication. Please try again."
-      );
+      showToast("Authentication failed. Please try again.", "error");
     } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleTokens = async (accessToken: string, refreshToken: string) => {
-    try {
-      await AsyncStorage.setItem("spotify_access_token", accessToken);
-      await AsyncStorage.setItem("spotify_refresh_token", refreshToken);
-      await AsyncStorage.setItem("is_authenticated", "true");
-      
-      // Navigate to main app
-      router.replace("/(tabs)");
-    } catch (error) {
-      console.error("Error storing tokens:", error);
+      setLocalLoading(false);
     }
   };
 
   const handleSpotifyLogin = async () => {
     try {
-      setIsLoading(true);
+      setLocalLoading(true);
 
       // Get auth URL from backend
       const response = await fetch(`${API_BASE_URL}/auth/login`);
@@ -187,7 +170,7 @@ export default function LoginScreen() {
         // Parse the callback URL to get the session token
         const url = new URL(result.url);
         const sessionToken = url.searchParams.get("sessionToken");
-        
+
         if (sessionToken) {
           // Exchange the session token for actual tokens
           await exchangeSessionToken(sessionToken);
@@ -204,45 +187,51 @@ export default function LoginScreen() {
         "Unable to connect to Spotify. Please try again."
       );
     } finally {
-      setIsLoading(false);
+      setLocalLoading(false);
     }
   };
+
+  // Redirect if already authenticated - must be after all hooks
+  if (isAuthenticated) {
+    return <Redirect href="/(tabs)/search" />;
+  }
 
   return (
     <View style={styles.container}>
       {/* Enhanced background with images */}
       <LoginBackgroundImage />
 
-      <Animated.View 
+      <Animated.View
         style={[
           styles.content,
           {
             opacity: fadeAnim,
-            transform: [
-              { translateY: slideAnim },
-              { scale: scaleAnim }
-            ]
-          }
+            transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+          },
         ]}
       >
         {/* Logo Section */}
         <View style={styles.logoSection}>
-          <Animated.View 
+          <Animated.View
             style={[
               styles.logoContainer,
               {
-                transform: [{ scale: scaleAnim }]
-              }
+                transform: [{ scale: scaleAnim }],
+              },
             ]}
           >
             <LinearGradient
               colors={Colors.gradients.green as any}
               style={styles.logoBackground}
             >
-              <MaterialIcons name="library-music" size={40} color={Colors.background} />
+              <MaterialIcons
+                name="library-music"
+                size={40}
+                color={Colors.background}
+              />
             </LinearGradient>
           </Animated.View>
-          
+
           <Text style={styles.appName}>SpotYme</Text>
           <Text style={styles.tagline}>Your AI music companion</Text>
         </View>
@@ -253,44 +242,52 @@ export default function LoginScreen() {
             style={[
               styles.loginButton,
               {
-                transform: [{ scale: buttonPulse }]
-              }
+                transform: [{ scale: buttonPulse }],
+              },
             ]}
           >
             <TouchableOpacity
               onPress={handleSpotifyLogin}
-              disabled={isLoading}
+              disabled={isLoading || localLoading}
               activeOpacity={0.8}
               style={styles.touchableButton}
             >
               <LinearGradient
-                colors={isLoading ? [Colors.surface, Colors.surface] : (Colors.gradients.green as any)}
+                colors={
+                  isLoading || localLoading
+                    ? [Colors.surface, Colors.surface]
+                    : (Colors.gradients.green as any)
+                }
                 style={styles.loginButtonGradient}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 0 }}
               >
-                {isLoading ? (
+                {isLoading || localLoading ? (
                   <ActivityIndicator size="small" color={Colors.text} />
                 ) : (
                   <View style={styles.buttonContent}>
-                    <MaterialIcons name="music-note" size={20} color={Colors.background} />
-                    <Text style={styles.loginButtonText} numberOfLines={1}>Continue with Spotify</Text>
+                    <MaterialIcons
+                      name="music-note"
+                      size={20}
+                      color={Colors.background}
+                    />
+                    <Text style={styles.loginButtonText} numberOfLines={1}>
+                      Continue with Spotify
+                    </Text>
                   </View>
                 )}
               </LinearGradient>
             </TouchableOpacity>
           </Animated.View>
 
-          <Text style={styles.disclaimer}>
-            Secure login via Spotify
-          </Text>
+          <Text style={styles.disclaimer}>Secure login via Spotify</Text>
         </View>
       </Animated.View>
     </View>
   );
 }
 
-const { width } = Dimensions.get('window');
+const { width } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
@@ -302,7 +299,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     paddingHorizontal: 24,
   },
-  
+
   // Logo Section
   logoSection: {
     alignItems: "center",
@@ -341,14 +338,14 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     letterSpacing: 0.5,
   },
-  
+
   // CTA Section
   ctaSection: {
     alignItems: "center",
-    width: '100%',
+    width: "100%",
   },
   loginButton: {
-    width: '100%',
+    width: "100%",
     maxWidth: Math.min(320, width - 48), // Responsive width
     shadowColor: Colors.primary,
     shadowOffset: {
@@ -360,7 +357,7 @@ const styles = StyleSheet.create({
     elevation: 6,
   },
   touchableButton: {
-    width: '100%',
+    width: "100%",
   },
   loginButtonGradient: {
     alignItems: "center",
@@ -375,7 +372,7 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
-    width: '100%',
+    width: "100%",
   },
   loginButtonText: {
     fontSize: 16,

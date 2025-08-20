@@ -15,7 +15,6 @@ import { Colors } from '../../constants/Colors';
 import { Song } from '../../constants/MockData';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Card } from '../../components/ui/Card';
-import { apiService } from '../../services/api';
 import { LinearGradient } from 'expo-linear-gradient';
 import { TrackCarousel } from '../../components/TrackCarousel';
 import { ArtistCarousel } from '../../components/ArtistCarousel';
@@ -26,80 +25,43 @@ import {
   TrackListSkeleton, 
   RecommendationsSkeleton 
 } from '../../components/skeletons/SearchSkeletons';
+import { useSearchStore, useUIStore } from '../../stores';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function SearchScreen() {
   const router = useRouter();
-  const [searchQuery, setSearchQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<Song[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
   
-  // Recommendation states
-  const [topTracks, setTopTracks] = useState<any[]>([]);
-  const [topArtists, setTopArtists] = useState<any[]>([]);
-  const [featuredPlaylists, setFeaturedPlaylists] = useState<any[]>([]);
-  const [newReleases, setNewReleases] = useState<any[]>([]);
-  const [recommendationsLoading, setRecommendationsLoading] = useState(true);
-  const [recommendationsError, setRecommendationsError] = useState<string | null>(null);
+  // Use Zustand stores
+  const {
+    searchQuery,
+    searchResults,
+    searchHistory,
+    topTracks,
+    topArtists,
+    featuredPlaylists,
+    newReleases,
+    isSearching,
+    isLoadingRecommendations,
+    searchError,
+    recommendationsError,
+    setSearchQuery,
+    searchTracks,
+    clearSearch,
+    fetchRecommendations,
+  } = useSearchStore();
   
-  // Modal states
-  const [selectedPlaylist, setSelectedPlaylist] = useState<any>(null);
-  const [playlistModalVisible, setPlaylistModalVisible] = useState(false);
-  const [selectedTrack, setSelectedTrack] = useState<any>(null);
-  const [trackModalVisible, setTrackModalVisible] = useState(false);
+  const {
+    playlistPreviewModal,
+    trackPreviewModal,
+    showPlaylistPreview,
+    hidePlaylistPreview,
+    showTrackPreview,
+    hideTrackPreview,
+    showToast,
+  } = useUIStore();
 
-  // Transform Spotify track data to our Song interface
-  const transformSpotifyTrack = (track: any): Song => {
-    return {
-      id: track.id,
-      title: track.name,
-      artist: track.artists?.map((a: any) => a.name).join(', ') || 'Unknown Artist',
-      album: track.album?.name || 'Unknown Album',
-      duration: Math.floor(track.duration_ms / 1000), // Convert to seconds
-      albumArt: track.album?.images?.[0]?.url || 'https://picsum.photos/seed/spotify/300/300',
-      genre: [], // Spotify doesn't return genres with tracks
-      mood: [], // We'll need to determine this from audio features
-      energy: 0.5, // Default, will update with audio features
-      popularity: track.popularity || 0,
-    };
-  };
-
-  // Debounced search function
-  const performSearch = useCallback(async (query: string) => {
-    if (!query.trim()) {
-      setSearchResults([]);
-      setError(null);
-      return;
-    }
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const response = await apiService.searchTracks(query, 20);
-      
-      if (response.success && response.data?.tracks?.items) {
-        const transformedTracks = response.data.tracks.items.map(transformSpotifyTrack);
-        setSearchResults(transformedTracks);  
-      } else {
-        // Ensure error is always a string
-        const errorMessage = typeof response.error === 'string' 
-          ? response.error 
-          : response.error?.message || 'Failed to search tracks';
-        setError(errorMessage);
-        setSearchResults([]);
-      }
-    } catch (err) {
-      console.error('Search error:', err);
-      setError('An error occurred while searching');
-      setSearchResults([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
 
   // Handle search input with debouncing
   useEffect(() => {
@@ -109,12 +71,11 @@ export default function SearchScreen() {
 
     if (searchQuery.trim()) {
       const newTimeout = setTimeout(() => {
-        performSearch(searchQuery);
+        searchTracks(searchQuery);
       }, 500); // 500ms debounce
       setSearchTimeout(newTimeout);
     } else {
-      setSearchResults([]);
-      setError(null);
+      clearSearch();
     }
 
     return () => {
@@ -125,15 +86,11 @@ export default function SearchScreen() {
   }, [searchQuery]);
 
   const handleSongPress = (song: Song) => {
-    // Show track preview modal instead of navigating directly
-    setSelectedTrack(song);
-    setTrackModalVisible(true);
+    showTrackPreview(song);
   };
 
   const handleTrackPress = (track: any) => {
-    // Show track preview modal instead of navigating directly
-    setSelectedTrack(track);
-    setTrackModalVisible(true);
+    showTrackPreview(track);
   };
 
   const handleArtistPress = (artist: any) => {
@@ -142,8 +99,7 @@ export default function SearchScreen() {
   };
 
   const handlePlaylistPress = (playlist: any) => {
-    setSelectedPlaylist(playlist);
-    setPlaylistModalVisible(true);
+    showPlaylistPreview(playlist);
   };
 
   const handleAlbumPress = (album: any) => {
@@ -154,50 +110,7 @@ export default function SearchScreen() {
 
   // Load recommendations when component mounts
   const loadRecommendations = async () => {
-    setRecommendationsLoading(true);
-    setRecommendationsError(null);
-
-    try {
-      // Fetch all recommendations in parallel
-      // Using medium_term for better data availability
-      const [tracksRes, artistsRes, featuredRes, releasesRes] = await Promise.all([
-        apiService.getTopTracks('medium_term', 10).catch(err => ({ success: false, error: err })),
-        apiService.getTopArtists('medium_term', 10).catch(err => ({ success: false, error: err })),
-        apiService.getFeaturedContent('US', 10).catch(err => ({ success: false, error: err })),
-        apiService.getNewReleases('US', 10).catch(err => ({ success: false, error: err })),
-      ]);
-
-      // Set data even if some requests fail
-      if (tracksRes.success && tracksRes.data?.items) {
-        setTopTracks(tracksRes.data.items);
-      } else {
-        console.log('Failed to load top tracks');
-      }
-
-      if (artistsRes.success && artistsRes.data?.items) {
-        console.log(`Loaded ${artistsRes.data.items.length} top artists`);
-        setTopArtists(artistsRes.data.items);
-      } else {
-        console.log('Failed to load top artists:', artistsRes.error || 'No data');
-      }
-
-      if (featuredRes.success && featuredRes.data?.playlists?.items && featuredRes.data.playlists.items.length > 0) {
-        setFeaturedPlaylists(featuredRes.data.playlists.items);
-      } else {
-        console.log('Failed to load featured playlists or no playlists available');
-      }
-
-      if (releasesRes.success && releasesRes.data?.albums?.items && releasesRes.data.albums.items.length > 0) {
-        setNewReleases(releasesRes.data.albums.items);
-      } else {
-        console.log('Failed to load new releases or no releases available');
-      }
-    } catch (err) {
-      console.error('Failed to load recommendations:', err);
-      setRecommendationsError('Failed to load recommendations');
-    } finally {
-      setRecommendationsLoading(false);
-    }
+    await fetchRecommendations();
   };
 
   useEffect(() => {
@@ -260,14 +173,14 @@ export default function SearchScreen() {
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
-        {error && (
+        {searchError && (
           <View style={styles.errorCard}>
             <MaterialIcons name="error-outline" size={24} color={Colors.danger} />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={styles.errorText}>{searchError}</Text>
           </View>
         )}
 
-        {isLoading ? (
+        {isSearching ? (
           <TrackListSkeleton count={6} />
         ) : searchResults.length > 0 ? (
           <View style={styles.resultsSection}>
@@ -330,7 +243,7 @@ export default function SearchScreen() {
               ))}
             </View>
           </View>
-        ) : searchQuery.trim() && !isLoading ? (
+        ) : searchQuery.trim() && !isSearching ? (
           <View style={styles.emptyState}>
             <View style={styles.emptyIconContainer}>
               <LinearGradient
@@ -347,7 +260,7 @@ export default function SearchScreen() {
           </View>
         ) : !searchQuery.trim() ? (
           <View style={styles.recommendationsContainer}>
-            {recommendationsLoading ? (
+            {isLoadingRecommendations ? (
               <RecommendationsSkeleton />
             ) : recommendationsError ? (
               <View style={styles.welcomeState}>
@@ -454,27 +367,21 @@ export default function SearchScreen() {
       </ScrollView>
 
       {/* Playlist Preview Modal */}
-      {selectedPlaylist && (
+      {playlistPreviewModal.data && (
         <PlaylistPreviewModal
-          visible={playlistModalVisible}
-          onClose={() => {
-            setPlaylistModalVisible(false);
-            setSelectedPlaylist(null);
-          }}
-          playlistId={selectedPlaylist.id}
-          playlistBasicInfo={selectedPlaylist}
+          visible={playlistPreviewModal.visible}
+          onClose={hidePlaylistPreview}
+          playlistId={playlistPreviewModal.data.id}
+          playlistBasicInfo={playlistPreviewModal.data}
         />
       )}
 
       {/* Track Preview Modal */}
-      {selectedTrack && (
+      {trackPreviewModal.data && (
         <TrackPreviewModal
-          visible={trackModalVisible}
-          onClose={() => {
-            setTrackModalVisible(false);
-            setSelectedTrack(null);
-          }}
-          track={selectedTrack}
+          visible={trackPreviewModal.visible}
+          onClose={hideTrackPreview}
+          track={trackPreviewModal.data}
         />
       )}
     </View>

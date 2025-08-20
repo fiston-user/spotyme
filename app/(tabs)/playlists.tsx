@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { 
   View, 
   Text, 
@@ -17,60 +17,25 @@ import { Colors } from '../../constants/Colors';
 import { Playlist } from '../../constants/MockData';
 import { PlaylistCard } from '../../components/PlaylistCard';
 import { Button } from '../../components/ui/Button';
-import { apiService } from '../../services/api';
 import { BlurView } from 'expo-blur';
 import { PlaylistsLoadingSkeleton } from '../../components/skeletons/PlaylistSkeletons';
+import { usePlaylistStore, useUIStore } from '../../stores';
 
 const { width: screenWidth } = Dimensions.get('window');
 
 export default function PlaylistsScreen() {
   const router = useRouter();
-  const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const { 
+    playlists, 
+    isLoading, 
+    isRefreshing, 
+    error, 
+    fetchPlaylists, 
+    refreshPlaylists 
+  } = usePlaylistStore();
+  const { showToast } = useUIStore();
 
-  // Transform backend playlist data to match our Playlist interface
-  const transformPlaylist = (backendPlaylist: any): Playlist => {
-    return {
-      id: backendPlaylist._id || backendPlaylist.id,
-      name: backendPlaylist.name,
-      description: backendPlaylist.description || '',
-      songs: backendPlaylist.tracks || [],
-      coverArt: backendPlaylist.tracks?.[0]?.albumArt || 'https://picsum.photos/seed/playlist/300/300',
-      createdAt: new Date(backendPlaylist.createdAt),
-      totalDuration: backendPlaylist.totalDuration || 0,
-    };
-  };
-
-  // Fetch playlists from backend
-  const fetchPlaylists = async (showRefresh = false) => {
-    if (showRefresh) {
-      setIsRefreshing(true);
-    } else {
-      setIsLoading(true);
-    }
-    setError(null);
-
-    try {
-      const response = await apiService.getUserPlaylists();
-      
-      if (response.success && response.data) {
-        const transformedPlaylists = response.data.map(transformPlaylist);
-        setPlaylists(transformedPlaylists);
-      } else {
-        setError(response.error || 'Failed to load playlists');
-      }
-    } catch (err) {
-      console.error('Fetch playlists error:', err);
-      setError('Failed to load playlists');
-    } finally {
-      setIsLoading(false);
-      setIsRefreshing(false);
-    }
-  };
-
-  // Load playlists on mount and when tab is focused
+  // Load playlists on mount
   useEffect(() => {
     fetchPlaylists();
   }, []);
@@ -78,7 +43,7 @@ export default function PlaylistsScreen() {
   // Refresh playlists when tab comes into focus
   useFocusEffect(
     useCallback(() => {
-      fetchPlaylists();
+      refreshPlaylists();
     }, [])
   );
 
@@ -91,7 +56,7 @@ export default function PlaylistsScreen() {
   };
 
   const handleRefresh = () => {
-    fetchPlaylists(true);
+    refreshPlaylists();
   };
 
   return (

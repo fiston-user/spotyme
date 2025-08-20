@@ -15,9 +15,9 @@ import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
 import { apiService } from "../../services/api";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import { ProfileLoadingSkeleton } from "../../components/skeletons/ProfileSkeletons";
+import { useAuthStore } from "../../stores";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -37,6 +37,7 @@ interface PlaylistStats {
 
 export default function ProfileScreen() {
   const router = useRouter();
+  const { logout: authLogout } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<PlaylistStats>({
     totalPlaylists: 0,
@@ -131,9 +132,9 @@ export default function ProfileScreen() {
           style: "destructive",
           onPress: async () => {
             try {
-              await apiService.logout();
-              await AsyncStorage.clear();
-              router.replace("/login");
+              // Use Zustand auth store logout which will handle everything
+              await authLogout();
+              // No need to manually navigate - the auth state change will trigger navigation
             } catch (error) {
               console.error("Logout error:", error);
               Alert.alert("Error", "Failed to logout. Please try again.");
