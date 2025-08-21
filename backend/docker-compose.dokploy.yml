@@ -39,7 +39,7 @@ services:
     labels:
       # Traefik configuration for Dokploy
       - "traefik.enable=true"
-      - "traefik.http.routers.spotyme-backend.rule=Host(`${BACKEND_DOMAIN:-api.spotyme.com}`)"
+      - "traefik.http.routers.spotyme-backend.rule=Host(`${BACKEND_DOMAIN:-api.spotyme.space}`)"
       - "traefik.http.routers.spotyme-backend.entrypoints=websecure"
       - "traefik.http.routers.spotyme-backend.tls.certresolver=letsencrypt"
       - "traefik.http.services.spotyme-backend.loadbalancer.server.port=3000"
