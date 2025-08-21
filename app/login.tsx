@@ -21,7 +21,7 @@ import { useAuthStore, useUIStore } from "../stores";
 WebBrowser.maybeCompleteAuthSession();
 
 // Using ngrok URL for Spotify OAuth callback support
-const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
+const API_BASE_URL = "https://api.spotyme.space";
 // For local testing without OAuth:
 // const API_BASE_URL = "http://localhost:3000";
 

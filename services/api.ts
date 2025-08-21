@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 // Using ngrok URL for Spotify OAuth callback support
-const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
+const API_BASE_URL = "https://api.spotyme.space";
 
 interface ApiResponse<T = any> {
   data?: T;
@@ -31,7 +31,7 @@ class ApiService {
             "spotify_refresh_token",
             "is_authenticated",
           ]);
-          
+
           return {
             success: false,
             error: "Session expired. Please login again.",
@@ -40,7 +40,10 @@ class ApiService {
 
         return {
           success: false,
-          error: data.error?.message || data.error || `Request failed with status ${response.status}`,
+          error:
+            data.error?.message ||
+            data.error ||
+            `Request failed with status ${response.status}`,
         };
       }
 
@@ -62,7 +65,9 @@ class ApiService {
 
   async refreshToken(): Promise<boolean> {
     try {
-      const refreshTokenValue = await AsyncStorage.getItem("spotify_refresh_token");
+      const refreshTokenValue = await AsyncStorage.getItem(
+        "spotify_refresh_token"
+      );
       if (!refreshTokenValue) return false;
 
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -281,18 +286,23 @@ class ApiService {
     }
   }
 
-  async getRecommendations(seedTracks: string, limit: number, targetEnergy?: number, targetValence?: number) {
+  async getRecommendations(
+    seedTracks: string,
+    limit: number,
+    targetEnergy?: number,
+    targetValence?: number
+  ) {
     try {
       const params = new URLSearchParams({
         seed_tracks: seedTracks,
         limit: limit.toString(),
       });
-      
+
       if (targetEnergy !== undefined) {
-        params.append('target_energy', targetEnergy.toString());
+        params.append("target_energy", targetEnergy.toString());
       }
       if (targetValence !== undefined) {
-        params.append('target_valence', targetValence.toString());
+        params.append("target_valence", targetValence.toString());
       }
 
       const response = await fetch(
@@ -390,10 +400,13 @@ class ApiService {
 
   async getPlaylist(playlistId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}`, {
-        method: "GET",
-        headers: await this.getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/playlists/${playlistId}`,
+        {
+          method: "GET",
+          headers: await this.getAuthHeaders(),
+        }
+      );
       return this.handleResponse(response);
     } catch (error) {
       return {
@@ -405,10 +418,13 @@ class ApiService {
 
   async deletePlaylist(playlistId: string) {
     try {
-      const response = await fetch(`${API_BASE_URL}/api/playlists/${playlistId}`, {
-        method: "DELETE",
-        headers: await this.getAuthHeaders(),
-      });
+      const response = await fetch(
+        `${API_BASE_URL}/api/playlists/${playlistId}`,
+        {
+          method: "DELETE",
+          headers: await this.getAuthHeaders(),
+        }
+      );
       return this.handleResponse(response);
     } catch (error) {
       return {
