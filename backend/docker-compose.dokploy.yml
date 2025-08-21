@@ -2,18 +2,16 @@ version: '3.8'
 
 services:
   backend:
-    image: ${DOCKER_REGISTRY:-gcr.io/make-automation-455521}/${DOCKER_IMAGE:-spotyme-backend}:${VERSION:-latest}
+    image: gcr.io/make-automation-455521/spotyme-backend:latest
     container_name: spotyme-backend
     restart: unless-stopped
-    ports:
-      - "${PORT:-3000}:3000"
     environment:
       # Server Configuration
       PORT: 3000
       NODE_ENV: production
       
-      # MongoDB Configuration
-      MONGODB_URI: ${MONGODB_URI}
+      # MongoDB Configuration - Internal connection
+      MONGODB_URI: mongodb://${MONGO_USER}:${MONGO_PASSWORD}@mongodb:27017/spotyme?authSource=admin
       
       # Spotify API Credentials
       SPOTIFY_CLIENT_ID: ${SPOTIFY_CLIENT_ID}
@@ -36,11 +34,25 @@ services:
       
       # Encryption Configuration
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+    labels:
+      # Traefik configuration for Dokploy
+      - "traefik.enable=true"
+      - "traefik.http.routers.spotyme-backend.rule=Host(`${BACKEND_DOMAIN:-api.spotyme.com}`)"
+      - "traefik.http.routers.spotyme-backend.entrypoints=websecure"
+      - "traefik.http.routers.spotyme-backend.tls.certresolver=letsencrypt"
+      - "traefik.http.services.spotyme-backend.loadbalancer.server.port=3000"
+      # CORS headers middleware
+      - "traefik.http.middlewares.spotyme-cors.headers.accessControlAllowOriginList=${FRONTEND_URL}"
+      - "traefik.http.middlewares.spotyme-cors.headers.accessControlAllowMethods=GET,POST,PUT,DELETE,OPTIONS,PATCH"
+      - "traefik.http.middlewares.spotyme-cors.headers.accessControlAllowHeaders=Content-Type,Authorization"
+      - "traefik.http.middlewares.spotyme-cors.headers.accessControlAllowCredentials=true"
+      - "traefik.http.routers.spotyme-backend.middlewares=spotyme-cors"
+    networks:
+      - dokploy-network
+      - spotyme-internal
     depends_on:
       mongodb:
         condition: service_healthy
-    networks:
-      - spotyme-network
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1))"]
       interval: 30s
@@ -60,8 +72,6 @@ services:
     image: mongo:7.0
     container_name: spotyme-mongo
     restart: unless-stopped
-    ports:
-      - "127.0.0.1:27017:27017"  # Only bind to localhost in production
     environment:
       MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USERNAME}
       MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD}
@@ -70,10 +80,10 @@ services:
       MONGO_PASSWORD: ${MONGO_PASSWORD}
     volumes:
       - mongo-data:/data/db
-      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
-      - mongo-backup:/backup  # Add backup volume
+      - ./files/init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+      - mongo-backup:/backup
     networks:
-      - spotyme-network
+      - spotyme-internal
     healthcheck:
       test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 30s
@@ -88,7 +98,7 @@ services:
         reservations:
           cpus: '1'
           memory: 512M
-    command: ["--auth", "--bind_ip_all"]  # Enable authentication and bind to all IPs
+    command: ["--auth", "--bind_ip_all"]
 
 volumes:
   mongo-data:
@@ -97,9 +107,8 @@ volumes:
     driver: local
 
 networks:
-  spotyme-network:
+  dokploy-network:
+    external: true
+  spotyme-internal:
     driver: bridge
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.28.0.0/16
+    internal: true  # Make this network internal-only for security
