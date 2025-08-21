@@ -14,8 +14,6 @@ import { LinearGradient } from "expo-linear-gradient";
 import { MaterialIcons } from "@expo/vector-icons";
 import * as WebBrowser from "expo-web-browser";
 import * as Linking from "expo-linking";
-import { Platform } from "react-native";
-import * as AuthSession from "expo-auth-session";
 import { Colors } from "../constants/Colors";
 import LoginBackgroundImage from "../components/LoginBackgroundImage";
 import { useAuthStore, useUIStore } from "../stores";
@@ -31,12 +29,6 @@ export default function LoginScreen() {
   const { login, isLoading, isAuthenticated } = useAuthStore();
   const { showToast } = useUIStore();
   const [localLoading, setLocalLoading] = useState(false);
-
-  // Get proper redirect URI for the platform
-  const redirectUri = AuthSession.makeRedirectUri({
-    scheme: "spotyme",
-    path: "callback",
-  });
 
   // Animation values - must be declared before any returns
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -85,48 +77,27 @@ export default function LoginScreen() {
   }, []);
 
   useEffect(() => {
-    console.log("Redirect URI:", redirectUri);
-    console.log("Platform:", Platform.OS);
-
     // Handle deep link when app returns from browser
     const handleDeepLink = async (url: string) => {
-      console.log("Received deep link:", url);
-
-      if (url.includes("spotyme://callback") || url.includes("spotyme://")) {
-        // Try to dismiss any open browser
-        if (Platform.OS === "android") {
-          WebBrowser.dismissBrowser().catch(() => {
-            // Ignore errors as dismissBrowser may not be available
-          });
-        }
-
+      if (url.includes("spotyme://callback")) {
         // For mobile app, we need to exchange the session token for actual tokens
-        try {
-          const urlObj = new URL(url);
-          const sessionToken = urlObj.searchParams.get("sessionToken");
+        const urlObj = new URL(url);
+        const sessionToken = urlObj.searchParams.get("sessionToken");
 
-          if (sessionToken) {
-            console.log("Found session token, exchanging...");
-            await exchangeSessionToken(sessionToken);
-          } else {
-            console.log("No session token found in URL");
-          }
-        } catch (error) {
-          console.error("Error parsing deep link URL:", error);
+        if (sessionToken) {
+          await exchangeSessionToken(sessionToken);
         }
       }
     };
 
     // Listen for deep links
     const subscription = Linking.addEventListener("url", (event) => {
-      console.log("Linking event received:", event.url);
       handleDeepLink(event.url);
     });
 
     // Check if app was opened with a deep link
     Linking.getInitialURL().then((url) => {
       if (url) {
-        console.log("Initial URL:", url);
         handleDeepLink(url);
       }
     });
@@ -182,74 +153,39 @@ export default function LoginScreen() {
         throw new Error("Failed to get authorization URL");
       }
 
-      // Android-specific workaround: Set up manual redirect listener
-      if (Platform.OS === "android") {
-        // Set up a one-time listener for the redirect
-        const handleUrl = (url: string) => {
-          if (url.includes("spotyme://callback")) {
-            const urlObj = new URL(url);
-            const sessionToken = urlObj.searchParams.get("sessionToken");
-            if (sessionToken) {
-              exchangeSessionToken(sessionToken);
-            }
-          }
-        };
-
-        // Listen for the redirect
-        const subscription = Linking.addEventListener("url", (event) => {
-          handleUrl(event.url);
-          subscription.remove();
-          // Try to dismiss the browser when we get the callback
-          WebBrowser.dismissBrowser().catch(() => {
-            // Ignore errors as dismissBrowser may not be available
-          });
-        });
-
-        // Open the auth URL in browser without waiting for result on Android
-        await WebBrowser.openBrowserAsync(data.authUrl);
-
-        // Set a timeout to clean up the listener if no redirect happens
-        setTimeout(() => {
-          subscription.remove();
-          setLocalLoading(false);
-        }, 60000); // 1 minute timeout
-      } else {
-        // iOS: Use the standard flow
-        const result = await WebBrowser.openAuthSessionAsync(
-          data.authUrl,
-          "spotyme://callback",
-          {
-            showInRecents: true,
-            createTask: false,
-          }
-        );
-
-        console.log("Auth result:", result);
-
-        if (result.type === "success" && result.url) {
-          // Parse the callback URL to get the session token
-          const url = new URL(result.url);
-          const sessionToken = url.searchParams.get("sessionToken");
-
-          if (sessionToken) {
-            // Exchange the session token for actual tokens
-            await exchangeSessionToken(sessionToken);
-          } else {
-            throw new Error("No session token in callback URL");
-          }
-        } else if (result.type === "dismiss") {
-          console.log("User dismissed the auth flow");
+      // Open Spotify auth in browser
+      const result = await WebBrowser.openAuthSessionAsync(
+        data.authUrl,
+        "spotyme://callback",
+        {
+          showInRecents: true,
+          createTask: false,
         }
-        setLocalLoading(false);
+      );
+
+      console.log("Auth result:", result);
+
+      if (result.type === "success" && result.url) {
+        // Parse the callback URL to get the session token
+        const url = new URL(result.url);
+        const sessionToken = url.searchParams.get("sessionToken");
+
+        if (sessionToken) {
+          // Exchange the session token for actual tokens
+          await exchangeSessionToken(sessionToken);
+        } else {
+          throw new Error("No session token in callback URL");
+        }
+      } else if (result.type === "dismiss") {
+        console.log("User dismissed the auth flow");
       }
     } catch (error) {
       console.error("Login error:", error);
       Alert.alert(
         "Login Failed",
-        Platform.OS === "android"
-          ? "Please tap 'Continue to SpotYme' button in the browser after logging in."
-          : "Unable to connect to Spotify. Please try again."
+        "Unable to connect to Spotify. Please try again."
       );
+    } finally {
       setLocalLoading(false);
     }
   };
