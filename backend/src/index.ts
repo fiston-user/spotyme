@@ -14,7 +14,6 @@ import authRoutes from "./routes/auth";
 import spotifyRoutes from "./routes/spotify";
 import playlistRoutes from "./routes/playlist";
 import userRoutes from "./routes/user";
-import assetlinksRoutes from "./routes/assetlinks";
 
 const logger = createLogger('server');
 
@@ -103,9 +102,6 @@ app.get("/", (_req, res) => {
     }
   });
 });
-
-// Android App Links verification (must be before other routes)
-app.use(assetlinksRoutes);
 
 app.use("/auth", authRoutes);
 app.use("/api/spotify", spotifyRoutes);

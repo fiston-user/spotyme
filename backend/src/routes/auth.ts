@@ -102,9 +102,8 @@ router.get(
         }
       }, 5 * 60 * 1000);
       
-      // Use HTTPS redirect for better Android compatibility
-      // This will trigger Android App Links which work more reliably
-      const httpsCallbackUrl = `https://api.spotyme.space/auth/mobile-callback?sessionToken=${mobileSessionToken}`;
+      // Create HTML page that will redirect to the app
+      // This ensures the redirect works from the OAuth browser
       const appCallbackUrl = `spotyme://callback?sessionToken=${mobileSessionToken}`;
       
       return res.send(`
@@ -165,29 +164,26 @@ router.get(
           <a href="${appCallbackUrl}" id="manualBtn" class="manual-button">Open SpotYme</a>
           <script>
             const appUrl = "${appCallbackUrl}";
-            const httpsUrl = "${httpsCallbackUrl}";
             const isAndroid = /android/i.test(navigator.userAgent);
             
             // Function to attempt redirect
             function attemptRedirect() {
+              // Try standard redirect
+              window.location.href = appUrl;
+              
+              // For Android, also try intent-based redirect
               if (isAndroid) {
-                // For Android, use HTTPS redirect first (more reliable with App Links)
-                window.location.href = httpsUrl;
-                
-                // Fallback to custom scheme after a delay
                 setTimeout(() => {
-                  window.location.href = appUrl;
-                }, 500);
-                
-                // Try Android intent URL format as additional fallback
-                setTimeout(() => {
+                  // Try Android intent URL format
                   const intentUrl = 'intent://callback?sessionToken=${mobileSessionToken}#Intent;scheme=spotyme;package=com.anonymous.spotyme;end';
                   window.location.href = intentUrl;
-                }, 1000);
-              } else {
-                // iOS: Use custom scheme directly (works reliably)
-                window.location.href = appUrl;
+                }, 200);
               }
+              
+              // Fallback: Try location.replace
+              setTimeout(() => {
+                window.location.replace(appUrl);
+              }, 500);
             }
             
             // Attempt redirect immediately
@@ -206,6 +202,13 @@ router.get(
                 }
               }
             }, 2000);
+            
+            // For Android Chrome/WebView, try using document.location
+            if (isAndroid) {
+              setTimeout(() => {
+                document.location = appUrl;
+              }, 300);
+            }
           </script>
         </body>
       </html>
@@ -284,92 +287,6 @@ router.post(
     }
   }
 );
-
-// Mobile callback endpoint for HTTPS App Links
-router.get("/mobile-callback", async (req: Request, res: Response) => {
-  const { sessionToken } = req.query;
-  
-  if (!sessionToken || typeof sessionToken !== "string") {
-    return res.status(400).send(`
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <title>Error</title>
-          <meta name="viewport" content="width=device-width, initial-scale=1">
-        </head>
-        <body style="font-family: -apple-system, sans-serif; padding: 20px;">
-          <h1>Authentication Error</h1>
-          <p>Invalid or missing session token</p>
-        </body>
-      </html>
-    `);
-  }
-
-  // Redirect to custom scheme URL for app handling
-  const appUrl = `spotyme://callback?sessionToken=${sessionToken}`;
-  
-  return res.send(`
-    <!DOCTYPE html>
-    <html>
-      <head>
-        <title>Opening SpotYme...</title>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta http-equiv="refresh" content="0;url=${appUrl}">
-        <style>
-          body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #1DB954 0%, #191414 100%);
-            color: white;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            text-align: center;
-          }
-          .spinner {
-            border: 3px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top: 3px solid white;
-            width: 40px;
-            height: 40px;
-            animation: spin 1s linear infinite;
-            margin: 20px auto;
-          }
-          @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-          }
-          a {
-            background: #1DB954;
-            color: #191414;
-            padding: 16px 32px;
-            border-radius: 30px;
-            text-decoration: none;
-            font-weight: 700;
-            font-size: 16px;
-            display: inline-block;
-            margin-top: 20px;
-          }
-        </style>
-      </head>
-      <body>
-        <h1>Opening SpotYme...</h1>
-        <div class="spinner"></div>
-        <p>If the app doesn't open automatically:</p>
-        <a href="${appUrl}">Open SpotYme</a>
-        <script>
-          // Multiple redirect attempts for Android compatibility
-          window.location.href = "${appUrl}";
-          setTimeout(() => { window.location.replace("${appUrl}"); }, 100);
-          setTimeout(() => { document.location = "${appUrl}"; }, 200);
-        </script>
-      </body>
-    </html>
-  `);
-});
 
 router.post("/logout", (req, res) => {
   req.session.destroy((err) => {
