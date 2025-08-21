@@ -86,6 +86,23 @@ app.use(
 
 app.use(rateLimiter);
 
+// Root endpoint
+app.get("/", (_req, res) => {
+  res.json({
+    message: "SpotYme API",
+    version: "1.0.0",
+    status: "running",
+    timestamp: new Date().toISOString(),
+    endpoints: {
+      health: "/health",
+      auth: "/auth/*",
+      spotify: "/api/spotify/*",
+      playlists: "/api/playlists/*",
+      user: "/api/user/*"
+    }
+  });
+});
+
 app.use("/auth", authRoutes);
 app.use("/api/spotify", spotifyRoutes);
 app.use("/api/playlists", playlistRoutes);
@@ -93,6 +110,15 @@ app.use("/api/user", userRoutes);
 
 app.get("/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+// 404 handler for undefined routes
+app.use((_req, res) => {
+  res.status(404).json({
+    error: "Not Found",
+    message: "The requested endpoint does not exist",
+    timestamp: new Date().toISOString()
+  });
 });
 
 app.use(errorHandler);
