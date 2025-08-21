@@ -2,7 +2,9 @@ version: '3.8'
 
 services:
   backend:
-    image: gcr.io/make-automation-455521/spotyme-backend:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
     container_name: spotyme-backend
     restart: unless-stopped
     environment:
