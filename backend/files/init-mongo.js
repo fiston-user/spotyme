@@ -3,10 +3,10 @@ const dbName = process.env.MONGO_INITDB_DATABASE || 'spotyme';
 const dbUser = process.env.MONGO_USER || 'spotyme_user';
 const dbPassword = process.env.MONGO_PASSWORD || 'spotyme_pass';
 
-// Switch to the target database
-db = db.getSiblingDB(dbName);
+// Switch to admin database first (we're root)
+db = db.getSiblingDB('admin');
 
-// Create database user
+// Create the user in admin database with access to spotyme database
 db.createUser({
   user: dbUser,
   pwd: dbPassword,
@@ -14,9 +14,16 @@ db.createUser({
     {
       role: 'readWrite',
       db: dbName
+    },
+    {
+      role: 'dbAdmin',
+      db: dbName
     }
   ]
 });
+
+// Now switch to the target database for collections
+db = db.getSiblingDB(dbName);
 
 // Create collections with validation
 db.createCollection('users', {
