@@ -28,7 +28,8 @@
           "action": "VIEW",
           "data": [
             {
-              "scheme": "spotyme"
+              "scheme": "spotyme",
+              "host": "callback"
             }
           ],
           "category": [

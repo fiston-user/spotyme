@@ -107,7 +107,7 @@ export default function LoginScreen() {
     };
   }, []);
 
-  const exchangeSessionToken = async (sessionToken: string) => {
+  const exchangeSessionToken = async (sessionToken: string, retryCount = 0) => {
     try {
       setLocalLoading(true);
 
@@ -131,10 +131,32 @@ export default function LoginScreen() {
           throw new Error("Failed to get tokens from exchange");
         }
       } else {
+        // Retry logic for failed exchange (up to 2 retries)
+        if (retryCount < 2) {
+          console.log(`Retrying token exchange (attempt ${retryCount + 2})...`);
+          setTimeout(() => {
+            exchangeSessionToken(sessionToken, retryCount + 1);
+          }, 1000);
+          return;
+        }
         throw new Error("Failed to exchange session token");
       }
     } catch (error) {
       console.error("Session token exchange error:", error);
+
+      // Retry on network errors
+      if (
+        retryCount < 2 &&
+        error instanceof TypeError &&
+        error.message.includes("fetch")
+      ) {
+        console.log(`Network error, retrying (attempt ${retryCount + 2})...`);
+        setTimeout(() => {
+          exchangeSessionToken(sessionToken, retryCount + 1);
+        }, 1500);
+        return;
+      }
+
       showToast("Authentication failed. Please try again.", "error");
     } finally {
       setLocalLoading(false);
@@ -153,8 +175,8 @@ export default function LoginScreen() {
         throw new Error("Failed to get authorization URL");
       }
 
-      // Open Spotify auth in browser
-      const result = await WebBrowser.openAuthSessionAsync(
+      // Open Spotify auth in browser with timeout recovery
+      const authPromise = WebBrowser.openAuthSessionAsync(
         data.authUrl,
         "spotyme://callback",
         {
@@ -163,28 +185,75 @@ export default function LoginScreen() {
         }
       );
 
-      console.log("Auth result:", result);
+      // Add timeout for Android auth sessions that might hang
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error("Auth session timeout")), 60000); // 60 second timeout
+      });
 
-      if (result.type === "success" && result.url) {
-        // Parse the callback URL to get the session token
-        const url = new URL(result.url);
-        const sessionToken = url.searchParams.get("sessionToken");
+      try {
+        const result = (await Promise.race([
+          authPromise,
+          timeoutPromise,
+        ])) as any;
 
-        if (sessionToken) {
-          // Exchange the session token for actual tokens
-          await exchangeSessionToken(sessionToken);
-        } else {
-          throw new Error("No session token in callback URL");
+        console.log("Auth result:", result);
+
+        if (result.type === "success" && result.url) {
+          // Parse the callback URL to get the session token
+          const url = new URL(result.url);
+          const sessionToken = url.searchParams.get("sessionToken");
+
+          if (sessionToken) {
+            // Exchange the session token for actual tokens
+            await exchangeSessionToken(sessionToken);
+          } else {
+            throw new Error("No session token in callback URL");
+          }
+        } else if (result.type === "dismiss") {
+          console.log("User dismissed the auth flow");
+          showToast("Login cancelled", "info");
         }
-      } else if (result.type === "dismiss") {
-        console.log("User dismissed the auth flow");
+      } catch (timeoutError) {
+        if (
+          timeoutError instanceof Error &&
+          timeoutError.message === "Auth session timeout"
+        ) {
+          console.log("Auth session timed out, checking for pending deep link");
+          showToast(
+            "Taking longer than expected... Please complete login in the browser",
+            "info"
+          );
+
+          // Wait a bit more for potential deep link
+          setTimeout(() => {
+            if (!isAuthenticated) {
+              Alert.alert(
+                "Login Timeout",
+                "The login process is taking longer than expected. Please try again or check if the app opened in the background.",
+                [{ text: "OK" }]
+              );
+            }
+          }, 5000);
+        } else {
+          throw timeoutError;
+        }
       }
     } catch (error) {
       console.error("Login error:", error);
-      Alert.alert(
-        "Login Failed",
-        "Unable to connect to Spotify. Please try again."
-      );
+
+      // More specific error messages
+      let errorMessage = "Unable to connect to Spotify. Please try again.";
+      if (error instanceof Error) {
+        if (error.message.includes("network")) {
+          errorMessage =
+            "Network error. Please check your connection and try again.";
+        } else if (error.message.includes("authorization")) {
+          errorMessage =
+            "Authorization failed. Please ensure you have a Spotify account.";
+        }
+      }
+
+      Alert.alert("Login Failed", errorMessage);
     } finally {
       setLocalLoading(false);
     }

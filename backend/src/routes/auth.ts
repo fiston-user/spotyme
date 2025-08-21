@@ -147,21 +147,68 @@ router.get(
               font-size: 48px;
               margin-bottom: 20px;
             }
+            .manual-button {
+              display: none;
+              animation: fadeIn 0.5s ease-in;
+            }
+            @keyframes fadeIn {
+              from { opacity: 0; }
+              to { opacity: 1; }
+            }
           </style>
         </head>
         <body>
           <div class="success-icon">✓</div>
           <h1>Login Successful!</h1>
           <p>Redirecting to SpotYme...</p>
-          <a href="${appCallbackUrl}">Open SpotYme</a>
+          <a href="${appCallbackUrl}" id="manualBtn" class="manual-button">Open SpotYme</a>
           <script>
-            // Try to redirect immediately
-            window.location.href = "${appCallbackUrl}";
+            const appUrl = "${appCallbackUrl}";
+            const isAndroid = /android/i.test(navigator.userAgent);
             
-            // Fallback redirect
+            // Function to attempt redirect
+            function attemptRedirect() {
+              // Try standard redirect
+              window.location.href = appUrl;
+              
+              // For Android, also try intent-based redirect
+              if (isAndroid) {
+                setTimeout(() => {
+                  // Try Android intent URL format
+                  const intentUrl = 'intent://callback?sessionToken=${mobileSessionToken}#Intent;scheme=spotyme;package=com.anonymous.spotyme;end';
+                  window.location.href = intentUrl;
+                }, 200);
+              }
+              
+              // Fallback: Try location.replace
+              setTimeout(() => {
+                window.location.replace(appUrl);
+              }, 500);
+            }
+            
+            // Attempt redirect immediately
+            attemptRedirect();
+            
+            // Show manual button after 2 seconds if still on page
             setTimeout(() => {
-              window.location.replace("${appCallbackUrl}");
-            }, 100);
+              const btn = document.getElementById('manualBtn');
+              if (btn) {
+                btn.style.display = 'inline-block';
+                
+                // Also update the message
+                const p = document.querySelector('p');
+                if (p) {
+                  p.textContent = 'Please click the button below to open SpotYme:';
+                }
+              }
+            }, 2000);
+            
+            // For Android Chrome/WebView, try using document.location
+            if (isAndroid) {
+              setTimeout(() => {
+                document.location = appUrl;
+              }, 300);
+            }
           </script>
         </body>
       </html>
