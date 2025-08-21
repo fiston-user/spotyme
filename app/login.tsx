@@ -79,25 +79,34 @@ export default function LoginScreen() {
   useEffect(() => {
     // Handle deep link when app returns from browser
     const handleDeepLink = async (url: string) => {
-      if (url.includes("spotyme://callback")) {
-        // For mobile app, we need to exchange the session token for actual tokens
-        const urlObj = new URL(url);
-        const sessionToken = urlObj.searchParams.get("sessionToken");
+      // Handle both custom scheme and HTTPS deep links
+      if (url.includes("spotyme://callback") || url.includes("/auth/mobile-callback")) {
+        try {
+          const urlObj = new URL(url);
+          const sessionToken = urlObj.searchParams.get("sessionToken");
 
-        if (sessionToken) {
-          await exchangeSessionToken(sessionToken);
+          if (sessionToken) {
+            console.log("Received session token from deep link");
+            await exchangeSessionToken(sessionToken);
+          } else {
+            console.error("No session token in deep link URL:", url);
+          }
+        } catch (error) {
+          console.error("Error parsing deep link URL:", error);
         }
       }
     };
 
     // Listen for deep links
     const subscription = Linking.addEventListener("url", (event) => {
+      console.log("Deep link received:", event.url);
       handleDeepLink(event.url);
     });
 
     // Check if app was opened with a deep link
     Linking.getInitialURL().then((url) => {
       if (url) {
+        console.log("Initial deep link URL:", url);
         handleDeepLink(url);
       }
     });
