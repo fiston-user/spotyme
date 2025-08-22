@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,6 +45,25 @@ export const ArtistCarousel: React.FC<ArtistCarouselProps> = ({
   isLoading = false,
 }) => {
   const [pressedId, setPressedId] = React.useState<string | null>(null);
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
   
   const formatFollowers = (count?: number) => {
     if (!count) return '';
@@ -74,7 +94,10 @@ export const ArtistCarousel: React.FC<ArtistCarouselProps> = ({
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, {
+      opacity: fadeAnim,
+      transform: [{ translateY: slideAnim }]
+    }]}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         {showSeeAll && (
@@ -139,13 +162,13 @@ export const ArtistCarousel: React.FC<ArtistCarouselProps> = ({
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginVertical: 20,
   },
   header: {
     flexDirection: 'row',
@@ -155,9 +178,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   seeAllButton: {
     flexDirection: 'row',
@@ -167,6 +191,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginRight: 4,
+    fontWeight: '600',
   },
   loadingContainer: {
     height: 180,
@@ -192,15 +217,16 @@ const styles = StyleSheet.create({
     width: CARD_WIDTH,
     height: CARD_WIDTH,
     borderRadius: CARD_WIDTH / 2,
-    marginBottom: 8,
-    shadowColor: Colors.primary,
+    marginBottom: 12,
+    shadowColor: '#000',
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 4,
     },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 5,
+    backgroundColor: Colors.surface,
   },
   artistImage: {
     width: '100%',
@@ -209,17 +235,17 @@ const styles = StyleSheet.create({
   },
   imageRing: {
     position: 'absolute',
-    top: -3,
-    left: -3,
-    right: -3,
-    bottom: -3,
-    borderRadius: (CARD_WIDTH + 6) / 2,
-    borderWidth: 2,
+    top: -4,
+    left: -4,
+    right: -4,
+    bottom: -4,
+    borderRadius: (CARD_WIDTH + 8) / 2,
+    borderWidth: 3,
     borderColor: Colors.primary,
     opacity: 0,
   },
   imageContainerPressed: {
-    transform: [{ scale: 0.95 }],
+    transform: [{ scale: 0.93 }],
   },
   imageRingActive: {
     opacity: 1,
@@ -229,20 +255,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   artistName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: 3,
     textAlign: 'center',
+    letterSpacing: 0.2,
   },
   genre: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
-    marginBottom: 2,
+    marginBottom: 3,
     textTransform: 'capitalize',
+    opacity: 0.9,
   },
   followers: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textTertiary,
+    fontWeight: '500',
   },
 });

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,6 +45,24 @@ export const TrackCarousel: React.FC<TrackCarouselProps> = ({
   onSeeAllPress,
   isLoading = false,
 }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 500,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
   const formatDuration = (ms?: number) => {
     if (!ms) return '';
     const minutes = Math.floor(ms / 60000);
@@ -69,7 +88,10 @@ export const TrackCarousel: React.FC<TrackCarouselProps> = ({
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, {
+      opacity: fadeAnim,
+      transform: [{ translateY: slideAnim }]
+    }]}>
       <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
         {showSeeAll && (
@@ -98,7 +120,7 @@ export const TrackCarousel: React.FC<TrackCarouselProps> = ({
               index === tracks.length - 1 && styles.lastCard,
             ]}
             onPress={() => onTrackPress(track)}
-            activeOpacity={0.8}
+            activeOpacity={0.9}
           >
             <View style={styles.imageContainer}>
               <Image
@@ -138,13 +160,13 @@ export const TrackCarousel: React.FC<TrackCarouselProps> = ({
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginVertical: 20,
   },
   header: {
     flexDirection: 'row',
@@ -154,9 +176,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   seeAllButton: {
     flexDirection: 'row',
@@ -166,6 +189,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginRight: 4,
+    fontWeight: '600',
   },
   loadingContainer: {
     height: 200,
@@ -179,6 +203,7 @@ const styles = StyleSheet.create({
   trackCard: {
     width: CARD_WIDTH,
     marginRight: 12,
+    transform: [{ scale: 1 }],
   },
   firstCard: {
     marginLeft: 0,
@@ -190,9 +215,15 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: CARD_WIDTH,
     height: CARD_WIDTH,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 5,
+    backgroundColor: Colors.surface,
   },
   albumArt: {
     width: '100%',
@@ -211,25 +242,32 @@ const styles = StyleSheet.create({
     right: 8,
   },
   playButtonGradient: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
     justifyContent: 'center',
     alignItems: 'center',
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   trackInfo: {
     paddingHorizontal: 4,
   },
   trackName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 2,
+    marginBottom: 3,
+    letterSpacing: 0.2,
   },
   artistName: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 5,
+    opacity: 0.9,
   },
   durationContainer: {
     flexDirection: 'row',

@@ -1,7 +1,7 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import ENV from "../config/env";
 
-// Using ngrok URL for Spotify OAuth callback support
-const API_BASE_URL = "https://api.spotyme.space";
+const API_BASE_URL = ENV.API_URL;
 
 interface ApiResponse<T = any> {
   data?: T;

@@ -17,15 +17,14 @@ import * as Linking from "expo-linking";
 import { Colors } from "../constants/Colors";
 import LoginBackgroundImage from "../components/LoginBackgroundImage";
 import { useAuthStore, useUIStore } from "../stores";
+import ENV from "../config/env";
 
 WebBrowser.maybeCompleteAuthSession();
 
-// Using ngrok URL for Spotify OAuth callback support
-const API_BASE_URL = "https://api.spotyme.space";
-// For local testing without OAuth:
-// const API_BASE_URL = "http://localhost:3000";
+const API_BASE_URL = ENV.API_URL;
 
 export default function LoginScreen() {
+  const router = useRouter();
   const { login, isLoading, isAuthenticated } = useAuthStore();
   const { showToast } = useUIStore();
   const [localLoading, setLocalLoading] = useState(false);
@@ -79,14 +78,10 @@ export default function LoginScreen() {
   useEffect(() => {
     // Handle deep link when app returns from browser
     const handleDeepLink = async (url: string) => {
-      if (url.includes("spotyme://callback")) {
-        // For mobile app, we need to exchange the session token for actual tokens
-        const urlObj = new URL(url);
-        const sessionToken = urlObj.searchParams.get("sessionToken");
-
-        if (sessionToken) {
-          await exchangeSessionToken(sessionToken);
-        }
+      console.log("Deep link received:", url);
+      if (url.includes("spotyme://callback") || url.includes("spotyme:///callback")) {
+        // Navigate to callback screen to handle the token exchange
+        router.replace("/callback");
       }
     };
 

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Dimensions,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -59,6 +60,26 @@ export const FeaturedSection: React.FC<FeaturedSectionProps> = ({
   isLoading = false,
   gradientColors = Colors.gradients.purple as string[],
 }) => {
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(30)).current;
+
+  useEffect(() => {
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 700,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+      Animated.spring(slideAnim, {
+        toValue: 0,
+        friction: 8,
+        tension: 40,
+        delay: 100,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  }, []);
   const isAlbum = (item: any): item is Album => {
     return 'artists' in item;
   };
@@ -96,7 +117,10 @@ export const FeaturedSection: React.FC<FeaturedSectionProps> = ({
   }
 
   return (
-    <View style={styles.container}>
+    <Animated.View style={[styles.container, {
+      opacity: fadeAnim,
+      transform: [{ translateY: slideAnim }]
+    }]}>
       <View style={styles.header}>
         <View style={styles.titleContainer}>
           <LinearGradient
@@ -133,7 +157,7 @@ export const FeaturedSection: React.FC<FeaturedSectionProps> = ({
               index === items.length - 1 && styles.lastCard,
             ]}
             onPress={() => onItemPress(item)}
-            activeOpacity={0.8}
+            activeOpacity={0.92}
           >
             <View style={styles.imageContainer}>
               <Image
@@ -177,13 +201,13 @@ export const FeaturedSection: React.FC<FeaturedSectionProps> = ({
           </TouchableOpacity>
         ))}
       </ScrollView>
-    </View>
+    </Animated.View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    marginVertical: 16,
+    marginVertical: 20,
   },
   header: {
     flexDirection: 'row',
@@ -197,15 +221,21 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   titleGradient: {
-    width: 4,
-    height: 20,
-    borderRadius: 2,
-    marginRight: 8,
+    width: 5,
+    height: 24,
+    borderRadius: 3,
+    marginRight: 10,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 2,
   },
   title: {
-    fontSize: 20,
-    fontWeight: 'bold',
+    fontSize: 22,
+    fontWeight: '800',
     color: Colors.text,
+    letterSpacing: -0.3,
   },
   seeAllButton: {
     flexDirection: 'row',
@@ -215,6 +245,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: Colors.textSecondary,
     marginRight: 4,
+    fontWeight: '600',
   },
   loadingContainer: {
     height: 240,
@@ -239,9 +270,15 @@ const styles = StyleSheet.create({
     position: 'relative',
     width: CARD_WIDTH,
     height: CARD_WIDTH,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
-    marginBottom: 8,
+    marginBottom: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 10,
+    elevation: 6,
+    backgroundColor: Colors.surface,
   },
   image: {
     width: '100%',
@@ -260,34 +297,36 @@ const styles = StyleSheet.create({
     right: 10,
   },
   playButtonGradient: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: 46,
+    height: 46,
+    borderRadius: 23,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
+    shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
-      height: 2,
+      height: 3,
     },
-    shadowOpacity: 0.3,
-    shadowRadius: 4,
-    elevation: 5,
+    shadowOpacity: 0.4,
+    shadowRadius: 6,
+    elevation: 6,
   },
   infoContainer: {
     paddingHorizontal: 4,
   },
   itemName: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: 15,
+    fontWeight: '700',
     color: Colors.text,
-    marginBottom: 3,
-    lineHeight: 18,
+    marginBottom: 4,
+    lineHeight: 19,
+    letterSpacing: 0.2,
   },
   subtitle: {
-    fontSize: 12,
+    fontSize: 13,
     color: Colors.textSecondary,
-    marginBottom: 4,
+    marginBottom: 5,
+    opacity: 0.9,
   },
   metaContainer: {
     flexDirection: 'row',
@@ -295,7 +334,8 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   metaText: {
-    fontSize: 11,
+    fontSize: 12,
     color: Colors.textTertiary,
+    fontWeight: '500',
   },
 });

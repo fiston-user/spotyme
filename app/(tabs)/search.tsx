@@ -1,38 +1,43 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  View, 
-  Text, 
-  ScrollView, 
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import {
+  View,
+  Text,
+  ScrollView,
   StyleSheet,
   TouchableOpacity,
   Alert,
   Image,
-  Dimensions
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { Ionicons, MaterialIcons } from '@expo/vector-icons';
-import { Colors } from '../../constants/Colors';
-import { Song } from '../../constants/MockData';
-import { SearchBar } from '../../components/ui/SearchBar';
-import { Card } from '../../components/ui/Card';
-import { LinearGradient } from 'expo-linear-gradient';
-import { TrackCarousel } from '../../components/TrackCarousel';
-import { ArtistCarousel } from '../../components/ArtistCarousel';
-import { FeaturedSection } from '../../components/FeaturedSection';
-import { PlaylistPreviewModal } from '../../components/PlaylistPreviewModal';
-import { TrackPreviewModal } from '../../components/TrackPreviewModal';
-import { 
-  TrackListSkeleton, 
-  RecommendationsSkeleton 
-} from '../../components/skeletons/SearchSkeletons';
-import { useSearchStore, useUIStore } from '../../stores';
+  Dimensions,
+  Animated,
+} from "react-native";
+import { useRouter } from "expo-router";
+import { Ionicons, MaterialIcons } from "@expo/vector-icons";
+import { Colors } from "../../constants/Colors";
+import { Song } from "../../constants/MockData";
+import { SearchBar } from "../../components/ui/SearchBar";
+import { Card } from "../../components/ui/Card";
+import { LinearGradient } from "expo-linear-gradient";
+import { TrackCarousel } from "../../components/TrackCarousel";
+import { ArtistCarousel } from "../../components/ArtistCarousel";
+import { FeaturedSection } from "../../components/FeaturedSection";
+import { PlaylistPreviewModal } from "../../components/PlaylistPreviewModal";
+import { TrackPreviewModal } from "../../components/TrackPreviewModal";
+import {
+  TrackListSkeleton,
+  RecommendationsSkeleton,
+} from "../../components/skeletons/SearchSkeletons";
+import { useSearchStore, useUIStore } from "../../stores";
 
-const { width: screenWidth } = Dimensions.get('window');
+const { width: screenWidth } = Dimensions.get("window");
 
 export default function SearchScreen() {
   const router = useRouter();
-  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(
+    null
+  );
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const scaleAnim = useRef(new Animated.Value(0.95)).current;
+
   // Use Zustand stores
   const {
     searchQuery,
@@ -51,7 +56,7 @@ export default function SearchScreen() {
     clearSearch,
     fetchRecommendations,
   } = useSearchStore();
-  
+
   const {
     playlistPreviewModal,
     trackPreviewModal,
@@ -61,7 +66,6 @@ export default function SearchScreen() {
     hideTrackPreview,
     showToast,
   } = useUIStore();
-
 
   // Handle search input with debouncing
   useEffect(() => {
@@ -104,7 +108,7 @@ export default function SearchScreen() {
 
   const handleAlbumPress = (album: any) => {
     // Search for album
-    const query = `${album.name} ${album.artists?.[0]?.name || ''}`;
+    const query = `${album.name} ${album.artists?.[0]?.name || ""}`;
     setSearchQuery(query);
   };
 
@@ -115,12 +119,26 @@ export default function SearchScreen() {
 
   useEffect(() => {
     loadRecommendations();
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 600,
+        useNativeDriver: true,
+      }),
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        friction: 8,
+        tension: 40,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
   return (
@@ -131,11 +149,21 @@ export default function SearchScreen() {
         style={styles.header}
         locations={[0, 0.9]}
       >
-        <View style={styles.headerContent}>
+        <Animated.View
+          style={[
+            styles.headerContent,
+            {
+              opacity: fadeAnim,
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
           <Text style={styles.headerLabel}>DISCOVER</Text>
           <Text style={styles.headerTitle}>Search Music</Text>
-          <Text style={styles.headerSubtitle}>Find tracks to build your perfect playlist</Text>
-        </View>
+          <Text style={styles.headerSubtitle}>
+            Find tracks to build your perfect playlist
+          </Text>
+        </Animated.View>
       </LinearGradient>
 
       {/* Enhanced Search Bar */}
@@ -144,38 +172,54 @@ export default function SearchScreen() {
           value={searchQuery}
           onChangeText={setSearchQuery}
           placeholder="Search songs, artists, albums..."
-          onClear={() => setSearchQuery('')}
+          onClear={() => setSearchQuery("")}
         />
-        
+
         {/* Quick Genre Filters */}
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
           style={styles.genreFilters}
           contentContainerStyle={styles.genreFiltersContent}
         >
-          {['Pop', 'Rock', 'Hip Hop', 'Electronic', 'Jazz', 'Classical'].map((genre) => (
-            <TouchableOpacity
-              key={genre}
-              style={styles.genreChip}
-              onPress={() => setSearchQuery(genre)}
-              activeOpacity={0.7}
-            >
-              <Text style={styles.genreChipText}>{genre}</Text>
-            </TouchableOpacity>
-          ))}
+          {["Pop", "Rock", "Hip Hop", "Electronic", "Jazz", "Classical"].map(
+            (genre, index) => (
+              <TouchableOpacity
+                key={genre}
+                style={[
+                  styles.genreChip,
+                  searchQuery === genre && styles.genreChipActive,
+                ]}
+                onPress={() => setSearchQuery(genre)}
+                activeOpacity={0.65}
+              >
+                <Text
+                  style={[
+                    styles.genreChipText,
+                    searchQuery === genre && styles.genreChipTextActive,
+                  ]}
+                >
+                  {genre}
+                </Text>
+              </TouchableOpacity>
+            )
+          )}
         </ScrollView>
       </View>
 
       {/* Results Section */}
-      <ScrollView 
+      <ScrollView
         style={styles.resultsContainer}
         showsVerticalScrollIndicator={false}
         contentContainerStyle={styles.scrollContent}
       >
         {searchError && (
           <View style={styles.errorCard}>
-            <MaterialIcons name="error-outline" size={24} color={Colors.danger} />
+            <MaterialIcons
+              name="error-outline"
+              size={24}
+              color={Colors.danger}
+            />
             <Text style={styles.errorText}>{searchError}</Text>
           </View>
         )}
@@ -187,10 +231,11 @@ export default function SearchScreen() {
             <View style={styles.resultsHeader}>
               <Text style={styles.resultsTitle}>Search Results</Text>
               <Text style={styles.resultsCount}>
-                {searchResults.length} {searchResults.length === 1 ? 'track' : 'tracks'}
+                {searchResults.length}{" "}
+                {searchResults.length === 1 ? "track" : "tracks"}
               </Text>
             </View>
-            
+
             <View style={styles.songsList}>
               {searchResults.map((song, index) => (
                 <TouchableOpacity
@@ -198,13 +243,13 @@ export default function SearchScreen() {
                   style={[
                     styles.songCard,
                     index === 0 && styles.firstSong,
-                    index === searchResults.length - 1 && styles.lastSong
+                    index === searchResults.length - 1 && styles.lastSong,
                   ]}
                   onPress={() => handleSongPress(song)}
-                  activeOpacity={0.7}
+                  activeOpacity={0.92}
                 >
-                  <Image 
-                    source={{ uri: song.albumArt }} 
+                  <Image
+                    source={{ uri: song.albumArt }}
                     style={styles.songAlbumArt}
                   />
                   <View style={styles.songInfo}>
@@ -216,13 +261,21 @@ export default function SearchScreen() {
                     </Text>
                     <View style={styles.songMeta}>
                       <View style={styles.songMetaItem}>
-                        <MaterialIcons name="album" size={12} color={Colors.textTertiary} />
+                        <MaterialIcons
+                          name="album"
+                          size={12}
+                          color={Colors.textTertiary}
+                        />
                         <Text style={styles.songMetaText} numberOfLines={1}>
                           {song.album}
                         </Text>
                       </View>
                       <View style={styles.songMetaItem}>
-                        <MaterialIcons name="schedule" size={12} color={Colors.textTertiary} />
+                        <MaterialIcons
+                          name="schedule"
+                          size={12}
+                          color={Colors.textTertiary}
+                        />
                         <Text style={styles.songMetaText}>
                           {formatDuration(song.duration)}
                         </Text>
@@ -236,7 +289,11 @@ export default function SearchScreen() {
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                     >
-                      <MaterialIcons name="playlist-add" size={20} color={Colors.background} />
+                      <MaterialIcons
+                        name="playlist-add"
+                        size={20}
+                        color={Colors.background}
+                      />
                     </LinearGradient>
                   </View>
                 </TouchableOpacity>
@@ -250,7 +307,11 @@ export default function SearchScreen() {
                 colors={Colors.gradients.purple as any}
                 style={styles.emptyIconGradient}
               >
-                <MaterialIcons name="search-off" size={32} color={Colors.text} />
+                <MaterialIcons
+                  name="search-off"
+                  size={32}
+                  color={Colors.text}
+                />
               </LinearGradient>
             </View>
             <Text style={styles.emptyTitle}>No results found</Text>
@@ -269,27 +330,49 @@ export default function SearchScreen() {
                     colors={Colors.gradients.blue as any}
                     style={styles.welcomeGradient}
                   >
-                    <MaterialIcons name="library-music" size={48} color={Colors.text} />
+                    <MaterialIcons
+                      name="library-music"
+                      size={48}
+                      color={Colors.text}
+                    />
                     <Text style={styles.welcomeTitle}>Start Searching</Text>
                     <Text style={styles.welcomeText}>
                       Type to search millions of tracks on Spotify
                     </Text>
                   </LinearGradient>
                 </View>
-                
+
                 <View style={styles.tipsSection}>
                   <Text style={styles.tipsTitle}>Search Tips</Text>
                   <View style={styles.tipCard}>
-                    <MaterialIcons name="lightbulb" size={16} color={Colors.primary} />
-                    <Text style={styles.tipText}>Tap any song to create a playlist based on it</Text>
+                    <MaterialIcons
+                      name="lightbulb"
+                      size={16}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.tipText}>
+                      Tap any song to create a playlist based on it
+                    </Text>
                   </View>
                   <View style={styles.tipCard}>
-                    <MaterialIcons name="music-note" size={16} color={Colors.primary} />
-                    <Text style={styles.tipText}>Search by song title, artist, or album name</Text>
+                    <MaterialIcons
+                      name="music-note"
+                      size={16}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.tipText}>
+                      Search by song title, artist, or album name
+                    </Text>
                   </View>
                   <View style={styles.tipCard}>
-                    <MaterialIcons name="trending-up" size={16} color={Colors.primary} />
-                    <Text style={styles.tipText}>Use genre chips above for quick searches</Text>
+                    <MaterialIcons
+                      name="trending-up"
+                      size={16}
+                      color={Colors.primary}
+                    />
+                    <Text style={styles.tipText}>
+                      Use genre chips above for quick searches
+                    </Text>
                   </View>
                 </View>
               </View>
@@ -301,7 +384,11 @@ export default function SearchScreen() {
                   onPress={loadRecommendations}
                   activeOpacity={0.7}
                 >
-                  <MaterialIcons name="refresh" size={20} color={Colors.textSecondary} />
+                  <MaterialIcons
+                    name="refresh"
+                    size={20}
+                    color={Colors.textSecondary}
+                  />
                   <Text style={styles.refreshText}>Refresh</Text>
                 </TouchableOpacity>
 
@@ -346,20 +433,34 @@ export default function SearchScreen() {
                 )}
 
                 {/* Fallback to tips if no recommendations available */}
-                {topTracks.length === 0 && topArtists.length === 0 && 
-                 featuredPlaylists.length === 0 && newReleases.length === 0 && (
-                  <View style={styles.tipsSection}>
-                    <Text style={styles.tipsTitle}>Get Started</Text>
-                    <View style={styles.tipCard}>
-                      <MaterialIcons name="search" size={16} color={Colors.primary} />
-                      <Text style={styles.tipText}>Search for your favorite songs</Text>
+                {topTracks.length === 0 &&
+                  topArtists.length === 0 &&
+                  featuredPlaylists.length === 0 &&
+                  newReleases.length === 0 && (
+                    <View style={styles.tipsSection}>
+                      <Text style={styles.tipsTitle}>Get Started</Text>
+                      <View style={styles.tipCard}>
+                        <MaterialIcons
+                          name="search"
+                          size={16}
+                          color={Colors.primary}
+                        />
+                        <Text style={styles.tipText}>
+                          Search for your favorite songs
+                        </Text>
+                      </View>
+                      <View style={styles.tipCard}>
+                        <MaterialIcons
+                          name="playlist-add"
+                          size={16}
+                          color={Colors.primary}
+                        />
+                        <Text style={styles.tipText}>
+                          Create playlists from any track
+                        </Text>
+                      </View>
                     </View>
-                    <View style={styles.tipCard}>
-                      <MaterialIcons name="playlist-add" size={16} color={Colors.primary} />
-                      <Text style={styles.tipText}>Create playlists from any track</Text>
-                    </View>
-                  </View>
-                )}
+                  )}
               </>
             )}
           </View>
@@ -396,26 +497,35 @@ const styles = StyleSheet.create({
   header: {
     paddingTop: 60,
     paddingBottom: 24,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+    elevation: 8,
   },
   headerContent: {
     paddingHorizontal: 20,
   },
   headerLabel: {
     fontSize: 12,
-    fontWeight: '600',
+    fontWeight: "700",
     color: Colors.textSecondary,
-    letterSpacing: 1,
+    letterSpacing: 1.5,
     marginBottom: 8,
+    opacity: 0.9,
   },
   headerTitle: {
-    fontSize: 36,
-    fontWeight: 'bold',
+    fontSize: 38,
+    fontWeight: "900",
     color: Colors.text,
-    marginBottom: 4,
+    marginBottom: 6,
+    letterSpacing: -0.5,
   },
   headerSubtitle: {
-    fontSize: 14,
+    fontSize: 15,
     color: Colors.textSecondary,
+    opacity: 0.85,
+    lineHeight: 20,
   },
   searchSection: {
     paddingBottom: 8,
@@ -430,17 +540,35 @@ const styles = StyleSheet.create({
   },
   genreChip: {
     backgroundColor: Colors.surface,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 24,
     marginRight: 8,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth: 1.5,
+    borderColor: "rgba(64, 64, 64, 0.4)",
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  genreChipActive: {
+    backgroundColor: Colors.primary,
+    borderColor: Colors.primary,
+    shadowColor: Colors.primary,
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 4,
   },
   genreChipText: {
     fontSize: 13,
     color: Colors.textSecondary,
-    fontWeight: '500',
+    fontWeight: "600",
+    letterSpacing: 0.3,
+  },
+  genreChipTextActive: {
+    color: Colors.background,
+    fontWeight: "700",
   },
   resultsContainer: {
     flex: 1,
@@ -452,25 +580,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
   },
   resultsHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 16,
     marginTop: 8,
   },
   resultsTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
   },
   errorCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     marginHorizontal: 20,
     marginVertical: 16,
     padding: 16,
-    backgroundColor: 'rgba(226, 33, 52, 0.1)',
+    backgroundColor: "rgba(226, 33, 52, 0.1)",
     borderRadius: 12,
   },
   errorText: {
@@ -486,34 +614,49 @@ const styles = StyleSheet.create({
     gap: 1,
   },
   songCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: Colors.surface,
-    paddingVertical: 12,
+    paddingVertical: 14,
     paddingHorizontal: 16,
+    borderLeftWidth: 3,
+    borderLeftColor: "transparent",
   },
   firstSong: {
-    borderTopLeftRadius: 12,
-    borderTopRightRadius: 12,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    marginTop: 4,
   },
   lastSong: {
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 12,
+    borderBottomLeftRadius: 16,
+    borderBottomRightRadius: 16,
+    marginBottom: 4,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
   songAlbumArt: {
     width: 56,
     height: 56,
-    borderRadius: 8,
-    marginRight: 12,
+    borderRadius: 10,
+    marginRight: 14,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 2,
   },
   songInfo: {
     flex: 1,
   },
   songTitle: {
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: "700",
     color: Colors.text,
-    marginBottom: 3,
+    marginBottom: 4,
+    letterSpacing: 0.2,
   },
   songArtist: {
     fontSize: 13,
@@ -521,14 +664,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   songMeta: {
-    flexDirection: 'row',
+    flexDirection: "row",
     gap: 12,
   },
   songMetaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 4,
-    maxWidth: '45%',
+    maxWidth: "45%",
   },
   songMetaText: {
     fontSize: 11,
@@ -538,14 +681,19 @@ const styles = StyleSheet.create({
     marginLeft: 12,
   },
   playlistButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    justifyContent: "center",
+    alignItems: "center",
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   emptyState: {
-    alignItems: 'center',
+    alignItems: "center",
     paddingTop: 60,
     paddingHorizontal: 40,
   },
@@ -556,36 +704,41 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
+    justifyContent: "center",
+    alignItems: "center",
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     marginBottom: 8,
   },
   emptyText: {
     fontSize: 14,
     color: Colors.textSecondary,
-    textAlign: 'center',
+    textAlign: "center",
   },
   welcomeState: {
     paddingTop: 40,
     paddingHorizontal: 20,
   },
   welcomeCard: {
-    borderRadius: 20,
-    overflow: 'hidden',
+    borderRadius: 24,
+    overflow: "hidden",
     marginBottom: 32,
+    shadowColor: Colors.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.2,
+    shadowRadius: 16,
+    elevation: 8,
   },
   welcomeGradient: {
     padding: 32,
-    alignItems: 'center',
+    alignItems: "center",
   },
   welcomeTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: Colors.text,
     marginTop: 16,
     marginBottom: 8,
@@ -593,7 +746,7 @@ const styles = StyleSheet.create({
   welcomeText: {
     fontSize: 14,
     color: Colors.text,
-    textAlign: 'center',
+    textAlign: "center",
     opacity: 0.9,
   },
   tipsSection: {
@@ -601,17 +754,24 @@ const styles = StyleSheet.create({
   },
   tipsTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: Colors.text,
     marginBottom: 8,
   },
   tipCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 12,
     backgroundColor: Colors.surface,
-    padding: 16,
-    borderRadius: 12,
+    padding: 18,
+    borderRadius: 14,
+    borderLeftWidth: 3,
+    borderLeftColor: Colors.primary,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
   },
   tipText: {
     flex: 1,
@@ -624,16 +784,21 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
   refreshButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-end',
+    flexDirection: "row",
+    alignItems: "center",
+    alignSelf: "flex-end",
     marginRight: 20,
-    marginBottom: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    marginBottom: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     backgroundColor: Colors.surface,
-    borderRadius: 16,
+    borderRadius: 18,
     gap: 6,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
   },
   refreshText: {
     fontSize: 13,
