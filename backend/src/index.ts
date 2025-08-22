@@ -16,23 +16,18 @@ import spotifyRoutes from "./routes/spotify";
 import playlistRoutes from "./routes/playlist";
 import userRoutes from "./routes/user";
 
-const logger = createLogger('server');
+const logger = createLogger("server");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Trust proxy headers (needed for ngrok and reverse proxies)
-app.set('trust proxy', true);
+app.set("trust proxy", true);
 
 app.use(helmet());
 app.use(
   cors({
-    origin: [
-      process.env.FRONTEND_URL || "http://localhost:8081",
-      "http://localhost:19006", // Expo web
-      "http://localhost:8081", // React Native
-      "exp://localhost:8081", // Expo client
-    ],
+    origin: true, // Accept all origins for now
     credentials: true,
   })
 );
@@ -43,14 +38,16 @@ app.use(express.urlencoded({ extended: true }));
 const getSessionSecret = (): string => {
   const secret = process.env.SESSION_SECRET;
   if (!secret || secret.length < 32) {
-    logger.error('SESSION_SECRET is missing or too short!');
-    logger.error('Please set a secure SESSION_SECRET in your environment variables');
-    if (process.env.NODE_ENV === 'production') {
-      throw new Error('SESSION_SECRET is required in production');
+    logger.error("SESSION_SECRET is missing or too short!");
+    logger.error(
+      "Please set a secure SESSION_SECRET in your environment variables"
+    );
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("SESSION_SECRET is required in production");
     }
     // Only for development - generate a temporary secret
-    logger.warn('Generating temporary session secret for development');
-    return require('crypto').randomBytes(32).toString('hex');
+    logger.warn("Generating temporary session secret for development");
+    return require("crypto").randomBytes(32).toString("hex");
   }
   return secret;
 };
@@ -58,28 +55,28 @@ const getSessionSecret = (): string => {
 app.use(
   session({
     secret: getSessionSecret(),
-    name: 'spotyme.sid', // Custom session name to avoid fingerprinting
+    name: "spotyme.sid", // Custom session name to avoid fingerprinting
     resave: false,
     saveUninitialized: false,
     rolling: true, // Reset expiry on activity
     store: MongoStore.create({
-      mongoUrl: process.env.MONGODB_URI || 'mongodb://localhost:27017/spotyme',
-      collectionName: 'sessions',
+      mongoUrl: process.env.MONGODB_URI || "mongodb://localhost:27017/spotyme",
+      collectionName: "sessions",
       ttl: 60 * 60 * 24 * 7, // 7 days in seconds
-      autoRemove: 'native', // Let MongoDB handle TTL
+      autoRemove: "native", // Let MongoDB handle TTL
       crypto: {
-        secret: process.env.SESSION_STORE_SECRET || getSessionSecret()
-      }
+        secret: process.env.SESSION_STORE_SECRET || getSessionSecret(),
+      },
     }),
     cookie: {
       secure: process.env.NODE_ENV === "production", // HTTPS only in production
       httpOnly: true, // Prevent XSS attacks
-      sameSite: 'strict', // CSRF protection
+      sameSite: "strict", // CSRF protection
       maxAge: 1000 * 60 * 60 * 24 * 7, // 7 days
       domain: process.env.COOKIE_DOMAIN || undefined,
     },
     // Add session store configuration for production
-    ...(process.env.NODE_ENV === 'production' && {
+    ...(process.env.NODE_ENV === "production" && {
       proxy: true, // Trust proxy in production
     }),
   })
@@ -99,8 +96,8 @@ app.get("/", (_req, res) => {
       auth: "/auth/*",
       spotify: "/api/spotify/*",
       playlists: "/api/playlists/*",
-      user: "/api/user/*"
-    }
+      user: "/api/user/*",
+    },
   });
 });
 
@@ -118,7 +115,7 @@ app.use((_req, res) => {
   res.status(404).json({
     error: "Not Found",
     message: "The requested endpoint does not exist",
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
   });
 });
 
@@ -128,22 +125,31 @@ const startServer = async () => {
   try {
     // Connect to MongoDB
     await connectDB();
-    
+
     // Initialize Redis connection
     try {
       await redisClient.connect();
-      logger.info('Redis connected successfully');
+      logger.info("Redis connected successfully");
     } catch (redisError) {
-      logger.warn({ error: redisError }, 'Redis connection failed - using fallback in-memory storage');
+      logger.warn(
+        { error: redisError },
+        "Redis connection failed - using fallback in-memory storage"
+      );
     }
-    
+
     app.listen(PORT, () => {
       logger.info({ port: PORT }, `Server running on port ${PORT}`);
-      logger.info({ env: process.env.NODE_ENV }, `Environment: ${process.env.NODE_ENV || 'development'}`);
-      logger.info({ redis: redisClient.isReady() }, `Redis: ${redisClient.isReady() ? 'Connected' : 'Using fallback'}`);
+      logger.info(
+        { env: process.env.NODE_ENV },
+        `Environment: ${process.env.NODE_ENV || "development"}`
+      );
+      logger.info(
+        { redis: redisClient.isReady() },
+        `Redis: ${redisClient.isReady() ? "Connected" : "Using fallback"}`
+      );
     });
   } catch (error) {
-    logger.fatal({ error }, 'Failed to start server');
+    logger.fatal({ error }, "Failed to start server");
     process.exit(1);
   }
 };
