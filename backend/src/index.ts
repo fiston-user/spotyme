@@ -7,6 +7,7 @@ import helmet from "helmet";
 import session from "express-session";
 import MongoStore from "connect-mongo";
 import { connectDB } from "./config/database";
+import { redisClient } from "./services/redisClient";
 import { errorHandler } from "./middleware/errorHandler";
 import { rateLimiter } from "./middleware/rateLimiter";
 import { createLogger } from "./utils/logger";
@@ -125,10 +126,21 @@ app.use(errorHandler);
 
 const startServer = async () => {
   try {
+    // Connect to MongoDB
     await connectDB();
+    
+    // Initialize Redis connection
+    try {
+      await redisClient.connect();
+      logger.info('Redis connected successfully');
+    } catch (redisError) {
+      logger.warn({ error: redisError }, 'Redis connection failed - using fallback in-memory storage');
+    }
+    
     app.listen(PORT, () => {
       logger.info({ port: PORT }, `Server running on port ${PORT}`);
       logger.info({ env: process.env.NODE_ENV }, `Environment: ${process.env.NODE_ENV || 'development'}`);
+      logger.info({ redis: redisClient.isReady() }, `Redis: ${redisClient.isReady() ? 'Connected' : 'Using fallback'}`);
     });
   } catch (error) {
     logger.fatal({ error }, 'Failed to start server');

@@ -36,8 +36,13 @@ services:
       
       # Encryption Configuration
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      
+      # Redis Configuration
+      REDIS_URL: redis://:${REDIS_PASSWORD:-spotyme_redis_secure_pass_2024}@redis:6379
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - spotyme-network
@@ -90,10 +95,38 @@ services:
           memory: 512M
     command: ["--auth", "--bind_ip_all"]  # Enable authentication and bind to all IPs
 
+  redis:
+    image: redis:7-alpine
+    container_name: spotyme-redis
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6379:6379"  # Only bind to localhost in production
+    command: redis-server --appendonly yes --appendfsync everysec --requirepass ${REDIS_PASSWORD:-spotyme_redis_secure_pass_2024}
+    volumes:
+      - redis-data:/data
+    networks:
+      - spotyme-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
+        reservations:
+          cpus: '0.25'
+          memory: 128M
+
 volumes:
   mongo-data:
     driver: local
   mongo-backup:
+    driver: local
+  redis-data:
     driver: local
 
 networks:

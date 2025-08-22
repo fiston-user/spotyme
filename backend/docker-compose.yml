@@ -36,8 +36,14 @@ services:
       
       # Encryption Configuration
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      
+      # Redis Configuration
+      # For local development, Redis without password (optional: add password for security)
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
     depends_on:
       mongodb:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     networks:
       - spotyme-network
@@ -73,8 +79,28 @@ services:
       retries: 3
       start_period: 20s
 
+  redis:
+    image: redis:7-alpine
+    container_name: spotyme-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes --appendfsync everysec
+    volumes:
+      - redis-data:/data
+    networks:
+      - spotyme-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
 volumes:
   mongo-data:
+    driver: local
+  redis-data:
     driver: local
 
 networks:

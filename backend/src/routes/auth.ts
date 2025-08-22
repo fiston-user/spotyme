@@ -1,27 +1,15 @@
 import { Router, Request, Response } from "express";
 import { spotifyAuthService } from "../services/spotifyAuth";
 import { userService } from "../services/userService";
+import { tokenStorageService } from "../services/tokenStorage";
 import { authValidation } from "../middleware/validation";
 import { authLimiter, loginAttemptLimiter } from "../middleware/rateLimiter";
-
-// Declare global type for mobile tokens storage
-declare global {
-  var mobileTokens: Record<string, {
-    accessToken: string;
-    refreshToken: string;
-    userId: string;
-    email: string;
-    displayName: string;
-    imageUrl?: string;
-    timestamp: number;
-  }> | undefined;
-}
 
 const router: Router = Router();
 
 router.get("/login", (req: Request, res: Response) => {
   // Generate a new state for CSRF protection
-  const state = spotifyAuthService.generateState();
+  const state = spotifyAuthService.generateStateSync();
   const authUrl = spotifyAuthService.getAuthorizationUrl(state);
 
   // Store state in session for web clients
@@ -51,7 +39,8 @@ router.get(
     }
 
     // Validate state to prevent CSRF attacks
-    if (!spotifyAuthService.validateState(state)) {
+    const isValidState = await spotifyAuthService.validateState(state);
+    if (!isValidState) {
       return res
         .status(400)
         .json({ error: "Invalid or expired state parameter" });
@@ -78,29 +67,15 @@ router.get(
       req.session.refreshToken = tokens.refresh_token;
 
       // Always redirect to mobile app after OAuth
-      // Create a temporary session token for mobile
-      const mobileSessionToken = require('crypto').randomBytes(32).toString('hex');
-      
-      // Store tokens temporarily in memory (in production, use Redis)
-      if (!global.mobileTokens) {
-        global.mobileTokens = {};
-      }
-      global.mobileTokens[mobileSessionToken] = {
+      // Store tokens in Redis with TTL
+      const mobileSessionToken = await tokenStorageService.storeMobileToken({
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
         userId: user.spotifyId,
         email: user.email,
         displayName: user.displayName,
         imageUrl: user.imageUrl || '',
-        timestamp: Date.now()
-      };
-      
-      // Clean up old tokens after 5 minutes
-      setTimeout(() => {
-        if (global.mobileTokens) {
-          delete global.mobileTokens[mobileSessionToken];
-        }
-      }, 5 * 60 * 1000);
+      });
       
       // Create HTML page that will redirect to the app
       // This ensures the redirect works from the OAuth browser
@@ -214,7 +189,9 @@ router.get(
       </html>
     `);
     } catch (error) {
-      console.error("Callback error:", error);
+      // Log error using logger instead of console
+      const logger = require('../utils/logger').createLogger('auth');
+      logger.error({ error }, 'OAuth callback error');
       return res.status(500).json({ error: "Failed to authenticate" });
     }
   }
@@ -231,25 +208,15 @@ router.post(
       return res.status(401).json({ error: "Session token required" });
     }
 
-    // Retrieve tokens from temporary storage
-    const tokenData = global.mobileTokens?.[sessionToken];
+    // Retrieve tokens from Redis (or fallback)
+    const tokenData = await tokenStorageService.getMobileToken(sessionToken);
     
     if (!tokenData) {
       return res.status(401).json({ error: "Invalid or expired session token" });
     }
     
-    // Check if token is not too old (5 minutes)
-    if (Date.now() - tokenData.timestamp > 5 * 60 * 1000) {
-      if (global.mobileTokens) {
-        delete global.mobileTokens[sessionToken];
-      }
-      return res.status(401).json({ error: "Session token expired" });
-    }
-
     // Delete token after use (one-time use)
-    if (global.mobileTokens) {
-      delete global.mobileTokens[sessionToken];
-    }
+    await tokenStorageService.deleteMobileToken(sessionToken);
 
     // Return tokens securely via POST response body
     return res.json({
@@ -282,7 +249,9 @@ router.post(
         expiresIn: tokens.expires_in,
       });
     } catch (error) {
-      console.error("Token refresh error:", error);
+      // Log error using logger instead of console
+      const logger = require('../utils/logger').createLogger('auth');
+      logger.error({ error }, 'Token refresh error');
       return res.status(401).json({ error: "Failed to refresh token" });
     }
   }

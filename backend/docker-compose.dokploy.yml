@@ -1,4 +1,28 @@
 services:
+  redis:
+    image: redis:7-alpine
+    container_name: spotyme-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --appendfsync everysec --requirepass ${REDIS_PASSWORD:-spotyme_redis_secure_pass_2024}
+    volumes:
+      - redis-data:/data
+    networks:
+      - dokploy-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+        reservations:
+          cpus: "0.25"
+          memory: 128M
+
   backend:
     build:
       context: .
@@ -36,6 +60,10 @@ services:
 
       # Encryption Configuration
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+
+      # Redis Configuration
+      # Use internal Redis service within Dokploy network with authentication
+      REDIS_URL: redis://:${REDIS_PASSWORD:-spotyme_redis_secure_pass_2024}@redis:6379
     labels:
       # Traefik configuration for Dokploy
       - "traefik.enable=true"
@@ -49,6 +77,9 @@ services:
       - "traefik.http.middlewares.spotyme-cors.headers.accessControlAllowHeaders=Content-Type,Authorization"
       - "traefik.http.middlewares.spotyme-cors.headers.accessControlAllowCredentials=true"
       - "traefik.http.routers.spotyme-backend.middlewares=spotyme-cors"
+    depends_on:
+      redis:
+        condition: service_healthy
     networks:
       - dokploy-network
     healthcheck:
@@ -71,6 +102,10 @@ services:
         reservations:
           cpus: "0.5"
           memory: 256M
+
+volumes:
+  redis-data:
+    driver: local
 
 networks:
   dokploy-network:
