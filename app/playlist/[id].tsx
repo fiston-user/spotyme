@@ -16,7 +16,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
-import { apiService } from "../../services/api";
+import { apiService } from "../../services/apiService";
 import { BlurView } from "expo-blur";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");

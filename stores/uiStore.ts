@@ -24,6 +24,10 @@ interface UIState {
     message: string;
     type: 'success' | 'error' | 'info' | 'warning';
     duration?: number;
+    action?: {
+      label: string;
+      onPress: () => void;
+    };
   };
   
   // Actions - Modals
@@ -42,7 +46,7 @@ interface UIState {
   clearGlobalError: () => void;
   
   // Actions - Toast
-  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number) => void;
+  showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning', duration?: number, action?: { label: string; onPress: () => void }) => void;
   hideToast: () => void;
   
   // Utils
@@ -62,6 +66,7 @@ const useUIStore = create<UIState>((set, get) => ({
     message: '',
     type: 'info',
     duration: 3000,
+    action: undefined,
   },
 
   // Modal Actions
@@ -124,13 +129,14 @@ const useUIStore = create<UIState>((set, get) => ({
   },
 
   // Toast Actions
-  showToast: (message, type = 'info', duration = 3000) => {
+  showToast: (message, type = 'info', duration = 3000, action) => {
     set({
       toast: {
         visible: true,
         message,
         type,
         duration,
+        action,
       },
     });
 

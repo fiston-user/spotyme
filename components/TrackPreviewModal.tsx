@@ -15,7 +15,7 @@ import { MaterialIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BlurView } from 'expo-blur';
 import { Colors } from '../constants/Colors';
-import { apiService } from '../services/api';
+import { apiService } from '../services/apiService';
 import { useRouter } from 'expo-router';
 
 const { height: screenHeight } = Dimensions.get('window');

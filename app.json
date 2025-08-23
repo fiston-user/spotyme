@@ -2,7 +2,7 @@
   "expo": {
     "name": "spotyme",
     "slug": "spotyme",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "dark",
@@ -15,7 +15,10 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.spotyme"
+      "bundleIdentifier": "com.anonymous.spotyme",
+      "runtimeVersion": {
+        "policy": "appVersion"
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -36,15 +39,38 @@
             "BROWSABLE",
             "DEFAULT"
           ]
+        },
+        {
+          "action": "VIEW",
+          "data": [
+            {
+              "scheme": "spotyme",
+              "host": "callback"
+            }
+          ],
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ],
-      "package": "com.anonymous.spotyme"
+      "package": "com.anonymous.spotyme",
+      "runtimeVersion": "2.0.0"
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "2aa79f4d-7db6-4800-9c3f-5b4417942f8f"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/2aa79f4d-7db6-4800-9c3f-5b4417942f8f"
+    }
   }
 }

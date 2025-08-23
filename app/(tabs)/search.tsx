@@ -26,7 +26,7 @@ import {
   TrackListSkeleton,
   RecommendationsSkeleton,
 } from "../../components/skeletons/SearchSkeletons";
-import { useSearchStore, useUIStore } from "../../stores";
+import { useSearchStore, useUIStore, useAuthStore } from "../../stores";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -66,6 +66,8 @@ export default function SearchScreen() {
     hideTrackPreview,
     showToast,
   } = useUIStore();
+
+  const { isAuthenticated, isHydrated, isLoggingOut } = useAuthStore();
 
   // Handle search input with debouncing
   useEffect(() => {
@@ -112,13 +114,22 @@ export default function SearchScreen() {
     setSearchQuery(query);
   };
 
-  // Load recommendations when component mounts
+  // Load recommendations when component mounts and auth is ready
   const loadRecommendations = async () => {
-    await fetchRecommendations();
+    // Only fetch if authenticated, hydrated, and not logging out
+    if (isAuthenticated && isHydrated && !isLoggingOut) {
+      await fetchRecommendations();
+    }
   };
 
   useEffect(() => {
-    loadRecommendations();
+    // Only load recommendations if authenticated and not logging out
+    if (isAuthenticated && isHydrated && !isLoggingOut) {
+      loadRecommendations();
+    }
+  }, [isAuthenticated, isHydrated, isLoggingOut]);
+
+  useEffect(() => {
     // Entrance animation
     Animated.parallel([
       Animated.timing(fadeAnim, {

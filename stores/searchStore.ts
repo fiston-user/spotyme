@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService } from '../services/api';
+import { apiService } from '../services/apiService';
 import { Song } from '../constants/MockData';
 
 interface SearchState {
@@ -151,6 +151,13 @@ const useSearchStore = create<SearchState>()(
 
       // Fetch all recommendations
       fetchRecommendations: async () => {
+        // Prevent multiple simultaneous fetches
+        const state = get();
+        if (state.isLoadingRecommendations) {
+          console.log('Already loading recommendations, skipping');
+          return;
+        }
+        
         set({ isLoadingRecommendations: true, recommendationsError: null });
 
         try {

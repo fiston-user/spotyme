@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService } from '../services/api';
+import { apiService } from '../services/apiService';
 
 interface User {
   id: string;
@@ -20,6 +20,7 @@ interface AuthState {
   refreshToken: string | null;
   isLoading: boolean;
   isHydrated: boolean; // Track if store has been hydrated from storage
+  isLoggingOut: boolean; // Track logout state
   error: string | null;
   
   // Actions
@@ -42,6 +43,7 @@ const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isLoading: false,
       isHydrated: false,
+      isLoggingOut: false,
       error: null,
 
       login: async (accessToken: string, refreshToken: string) => {
@@ -96,23 +98,18 @@ const useAuthStore = create<AuthState>()(
       },
 
       logout: async () => {
-        set({ isLoading: true });
+        set({ isLoading: true, isLoggingOut: true });
         try {
-          // Use the existing apiService logout method
-          await apiService.logout();
-
-          set({
-            isAuthenticated: false,
-            user: null,
-            accessToken: null,
-            refreshToken: null,
-            isLoading: false,
-            error: null,
-          });
+          // Import apiClient instead of apiService to avoid circular dependency
+          const { apiClient } = await import('../services/apiClient');
+          await apiClient.logout();
+          
+          // State will be cleared by apiClient.clearAuthData()
         } catch (error) {
           set({
             error: error instanceof Error ? error.message : 'Logout failed',
             isLoading: false,
+            isLoggingOut: false,
           });
         }
       },

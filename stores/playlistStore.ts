@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { apiService } from '../services/api';
+import { apiService } from '../services/apiService';
 import { Playlist, Song } from '../constants/MockData';
 
 interface PlaylistState {

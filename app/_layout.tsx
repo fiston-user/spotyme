@@ -1,10 +1,12 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { AuthToast } from '../components/AuthToast';
 
 export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
+      <AuthToast />
       <Stack
         screenOptions={{
           headerStyle: {

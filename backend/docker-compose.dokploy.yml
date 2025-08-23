@@ -3,7 +3,7 @@ services:
     image: redis:7-alpine
     container_name: spotyme-redis
     restart: unless-stopped
-    command: redis-server --appendonly yes --appendfsync everysec --requirepass ${REDIS_PASSWORD:-spotyme_redis_secure_pass_2024}
+    command: redis-server --appendonly yes --appendfsync everysec --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     networks:
@@ -63,7 +63,7 @@ services:
 
       # Redis Configuration
       # Use internal Redis service within Dokploy network with authentication
-      REDIS_URL: redis://:${REDIS_PASSWORD:-spotyme_redis_secure_pass_2024}@redis:6379
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379
     labels:
       # Traefik configuration for Dokploy
       - "traefik.enable=true"

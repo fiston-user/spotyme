@@ -17,7 +17,7 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
 import { Song } from "../../constants/MockData";
 import Slider from "@react-native-community/slider";
-import { apiService } from "../../services/api";
+import { apiService } from "../../services/apiService";
 import { BlurView } from "expo-blur";
 import { PlaylistBuilderLoadingSkeleton } from "../../components/skeletons/PlaylistBuilderSkeletons";
 

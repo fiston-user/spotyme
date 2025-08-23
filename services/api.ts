@@ -1,7 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ENV from "../config/env";
 
-const API_BASE_URL = ENV.API_URL;
+const API_BASE_URL = "https://api.spotyme.space";
 
 interface ApiResponse<T = any> {
   data?: T;

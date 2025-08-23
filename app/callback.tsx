@@ -3,16 +3,16 @@ import { View, Text, ActivityIndicator } from "react-native";
 import { useRouter } from "expo-router";
 import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import ENV from "../config/env";
+import { useAuthStore } from "../stores";
 
-const API_URL = ENV.API_URL;
+const API_URL = "https://api.spotyme.space";
 
 export default function CallbackScreen() {
   const router = useRouter();
 
   useEffect(() => {
     handleCallback();
-    
+
     // Also listen for URL changes while the screen is mounted
     const subscription = Linking.addEventListener("url", (event) => {
       console.log("URL event received in callback:", event.url);
@@ -27,12 +27,12 @@ export default function CallbackScreen() {
       // First try to get the current URL from Linking
       const currentUrl = await Linking.getInitialURL();
       console.log("Initial URL in callback:", currentUrl);
-      
+
       if (currentUrl && currentUrl.includes("callback")) {
         await handleCallbackUrl(currentUrl);
         return;
       }
-      
+
       // If no URL, wait a bit for the deep link to arrive
       setTimeout(async () => {
         const url = await Linking.getInitialURL();
@@ -53,8 +53,12 @@ export default function CallbackScreen() {
   const handleCallbackUrl = async (url: string) => {
     try {
       console.log("Processing callback URL:", url);
-      
-      if (url && (url.includes("spotyme://callback") || url.includes("spotyme:///callback"))) {
+
+      if (
+        url &&
+        (url.includes("spotyme://callback") ||
+          url.includes("spotyme:///callback"))
+      ) {
         const sessionToken = extractSessionToken(url);
         console.log("Session token:", sessionToken);
 
@@ -75,12 +79,26 @@ export default function CallbackScreen() {
           const data = await response.json();
 
           if (data.accessToken && data.refreshToken) {
-            await AsyncStorage.setItem("spotify_access_token", data.accessToken);
-            await AsyncStorage.setItem("spotify_refresh_token", data.refreshToken);
+            // Store tokens in AsyncStorage
+            await AsyncStorage.setItem(
+              "spotify_access_token",
+              data.accessToken
+            );
+            await AsyncStorage.setItem(
+              "spotify_refresh_token",
+              data.refreshToken
+            );
             await AsyncStorage.setItem("is_authenticated", "true");
 
-            // Navigate to main app
-            router.replace("/(tabs)");
+            // Update auth store
+            const authStore = useAuthStore.getState();
+            await authStore.login(data.accessToken, data.refreshToken);
+
+            // Small delay to ensure auth state is propagated
+            setTimeout(() => {
+              // Navigate to main app
+              router.replace("/(tabs)");
+            }, 100);
           } else {
             throw new Error("Invalid token response");
           }

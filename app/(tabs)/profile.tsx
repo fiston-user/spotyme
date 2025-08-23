@@ -14,7 +14,8 @@ import { useRouter } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
 import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
-import { apiService } from "../../services/api";
+import { apiService } from "../../services/apiService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import { ProfileLoadingSkeleton } from "../../components/skeletons/ProfileSkeletons";
 import { useAuthStore } from "../../stores";
@@ -37,7 +38,7 @@ interface PlaylistStats {
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { logout: authLogout } = useAuthStore();
+  const { logout: authLogout, isAuthenticated, isHydrated } = useAuthStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<PlaylistStats>({
     totalPlaylists: 0,
@@ -48,9 +49,12 @@ export default function ProfileScreen() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadProfile();
-    loadStats();
-  }, []);
+    // Only load profile if authenticated and hydrated
+    if (isAuthenticated && isHydrated) {
+      loadProfile();
+      loadStats();
+    }
+  }, [isAuthenticated, isHydrated]);
 
   const loadProfile = async () => {
     try {
@@ -60,31 +64,13 @@ export default function ProfileScreen() {
       if (response.success && response.data) {
         setProfile(response.data as UserProfile);
       } else {
-        // Check if session expired
-        if (
-          response.error?.includes("Session expired") ||
-          response.error?.includes("Unauthorized")
-        ) {
-          // Clear tokens and redirect to login
-          await AsyncStorage.clear();
-          router.replace("/login");
-          return;
-        }
+        // Session expiry is now handled by apiClient
+        // No need to manually clear and redirect
         throw new Error(response.error || "Failed to load profile");
       }
     } catch (error) {
       console.error("Error fetching profile:", error);
-      // Check if it's a session error
-      const errorMessage =
-        error instanceof Error ? error.message : "Unknown error";
-      if (
-        errorMessage.includes("Session expired") ||
-        errorMessage.includes("Unauthorized")
-      ) {
-        await AsyncStorage.clear();
-        router.replace("/login");
-        return;
-      }
+      // Session errors are now handled by apiClient
       setError("Unable to load profile. Please try again.");
     } finally {
       setIsLoading(false);

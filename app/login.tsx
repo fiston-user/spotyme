@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Dimensions,
   Animated,
+  SafeAreaView,
 } from "react-native";
 import { useRouter, Redirect } from "expo-router";
 import { LinearGradient } from "expo-linear-gradient";
@@ -17,11 +18,12 @@ import * as Linking from "expo-linking";
 import { Colors } from "../constants/Colors";
 import LoginBackgroundImage from "../components/LoginBackgroundImage";
 import { useAuthStore, useUIStore } from "../stores";
-import ENV from "../config/env";
+import SpotifyLogo from "../components/logos/Spotify";
+import AppleMusicLogo from "../components/logos/Apple";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const API_BASE_URL = ENV.API_URL;
+const API_BASE_URL = "https://api.spotyme.space";
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -33,7 +35,8 @@ export default function LoginScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(50)).current;
   const scaleAnim = useRef(new Animated.Value(0.9)).current;
-  const buttonPulse = useRef(new Animated.Value(1)).current;
+  const buttonSlideAnim = useRef(new Animated.Value(100)).current;
+  const buttonFadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     // Entrance animations
@@ -41,45 +44,48 @@ export default function LoginScreen() {
       Animated.timing(fadeAnim, {
         toValue: 1,
         duration: 1200,
-        delay: 500,
+        delay: 300,
         useNativeDriver: true,
       }),
       Animated.timing(slideAnim, {
         toValue: 0,
         duration: 1000,
-        delay: 500,
+        delay: 300,
         useNativeDriver: true,
       }),
       Animated.timing(scaleAnim, {
         toValue: 1,
         duration: 1000,
-        delay: 500,
+        delay: 300,
         useNativeDriver: true,
       }),
     ]).start();
 
-    // Button pulse animation
-    Animated.loop(
-      Animated.sequence([
-        Animated.timing(buttonPulse, {
-          toValue: 1.02,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-        Animated.timing(buttonPulse, {
-          toValue: 1,
-          duration: 2000,
-          useNativeDriver: true,
-        }),
-      ])
-    ).start();
+    // Button animations
+    Animated.parallel([
+      Animated.timing(buttonSlideAnim, {
+        toValue: 0,
+        duration: 800,
+        delay: 800,
+        useNativeDriver: true,
+      }),
+      Animated.timing(buttonFadeAnim, {
+        toValue: 1,
+        duration: 800,
+        delay: 800,
+        useNativeDriver: true,
+      }),
+    ]).start();
   }, []);
 
   useEffect(() => {
     // Handle deep link when app returns from browser
     const handleDeepLink = async (url: string) => {
       console.log("Deep link received:", url);
-      if (url.includes("spotyme://callback") || url.includes("spotyme:///callback")) {
+      if (
+        url.includes("spotyme://callback") ||
+        url.includes("spotyme:///callback")
+      ) {
         // Navigate to callback screen to handle the token exchange
         router.replace("/callback");
       }
@@ -162,9 +168,18 @@ export default function LoginScreen() {
     try {
       setLocalLoading(true);
 
+      console.log("Attempting to connect to:", `${API_BASE_URL}/auth/login`);
+
       // Get auth URL from backend
       const response = await fetch(`${API_BASE_URL}/auth/login`);
+
+      if (!response.ok) {
+        console.error("Response not OK:", response.status, response.statusText);
+        throw new Error(`Server error: ${response.status}`);
+      }
+
       const data = await response.json();
+      console.log("Auth response received:", data);
 
       if (!data.authUrl) {
         throw new Error("Failed to get authorization URL");
@@ -234,17 +249,29 @@ export default function LoginScreen() {
         }
       }
     } catch (error) {
-      console.error("Login error:", error);
+      console.error("Login error details:", error);
+      console.error("Error type:", typeof error);
+      console.error(
+        "Error message:",
+        error instanceof Error ? error.message : "Unknown"
+      );
 
       // More specific error messages
       let errorMessage = "Unable to connect to Spotify. Please try again.";
       if (error instanceof Error) {
-        if (error.message.includes("network")) {
-          errorMessage =
-            "Network error. Please check your connection and try again.";
+        console.error("Full error:", error.toString());
+        if (
+          error.message.includes("network") ||
+          error.message.includes("fetch")
+        ) {
+          errorMessage = `Network error connecting to ${API_BASE_URL}. Please check your connection.`;
+        } else if (error.message.includes("Server error")) {
+          errorMessage = error.message;
         } else if (error.message.includes("authorization")) {
           errorMessage =
             "Authorization failed. Please ensure you have a Spotify account.";
+        } else {
+          errorMessage = `Error: ${error.message}`;
         }
       }
 
@@ -254,103 +281,111 @@ export default function LoginScreen() {
     }
   };
 
+  const handleAppleMusicLogin = () => {
+    showToast("Apple Music support coming soon!", "info");
+  };
+
   // Redirect if already authenticated - must be after all hooks
   if (isAuthenticated) {
     return <Redirect href="/(tabs)/search" />;
   }
 
   return (
-    <View style={styles.container}>
+    <SafeAreaView style={styles.container}>
       {/* Enhanced background with images */}
       <LoginBackgroundImage />
 
-      <Animated.View
-        style={[
-          styles.content,
-          {
-            opacity: fadeAnim,
-            transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
-          },
-        ]}
-      >
-        {/* Logo Section */}
-        <View style={styles.logoSection}>
-          <Animated.View
-            style={[
-              styles.logoContainer,
-              {
-                transform: [{ scale: scaleAnim }],
-              },
-            ]}
-          >
+      <View style={styles.content}>
+        {/* Top Section with Logo and Text */}
+        <Animated.View
+          style={[
+            styles.topSection,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }, { scale: scaleAnim }],
+            },
+          ]}
+        >
+          {/* Logo */}
+          <View style={styles.logoContainer}>
             <LinearGradient
               colors={Colors.gradients.green as any}
               style={styles.logoBackground}
             >
               <MaterialIcons
                 name="library-music"
-                size={40}
+                size={48}
                 color={Colors.background}
               />
             </LinearGradient>
-          </Animated.View>
+          </View>
 
-          <Text style={styles.appName}>SpotYme</Text>
-          <Text style={styles.tagline}>Your AI music companion</Text>
-        </View>
+          {/* Welcome Text */}
+          <View style={styles.textContainer}>
+            <Text style={styles.welcomeText}>Welcome!</Text>
+            <Text style={styles.subtitleText}>
+              Choose your streaming service to continue
+            </Text>
+          </View>
+        </Animated.View>
 
-        {/* Login Button */}
-        <View style={styles.ctaSection}>
-          <Animated.View
-            style={[
-              styles.loginButton,
-              {
-                transform: [{ scale: buttonPulse }],
-              },
-            ]}
+        {/* Bottom Section with Login Buttons */}
+        <Animated.View
+          style={[
+            styles.bottomSection,
+            {
+              opacity: buttonFadeAnim,
+              transform: [{ translateY: buttonSlideAnim }],
+            },
+          ]}
+        >
+          {/* Spotify Login Button */}
+          <TouchableOpacity
+            onPress={handleSpotifyLogin}
+            disabled={isLoading || localLoading}
+            activeOpacity={0.8}
+            style={styles.loginButton}
           >
-            <TouchableOpacity
-              onPress={handleSpotifyLogin}
-              disabled={isLoading || localLoading}
-              activeOpacity={0.8}
-              style={styles.touchableButton}
-            >
-              <LinearGradient
-                colors={
-                  isLoading || localLoading
-                    ? [Colors.surface, Colors.surface]
-                    : (Colors.gradients.green as any)
-                }
-                style={styles.loginButtonGradient}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-              >
-                {isLoading || localLoading ? (
-                  <ActivityIndicator size="small" color={Colors.text} />
-                ) : (
-                  <View style={styles.buttonContent}>
-                    <MaterialIcons
-                      name="music-note"
-                      size={20}
-                      color={Colors.background}
-                    />
-                    <Text style={styles.loginButtonText} numberOfLines={1}>
-                      Continue with Spotify
-                    </Text>
-                  </View>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-          </Animated.View>
+            <View style={[styles.buttonInner, styles.spotifyButton]}>
+              {isLoading || localLoading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <SpotifyLogo width={24} height={24} />
+                  <Text style={styles.buttonText}>Continue with Spotify</Text>
+                </>
+              )}
+            </View>
+          </TouchableOpacity>
 
-          <Text style={styles.disclaimer}>Secure login via Spotify</Text>
-        </View>
-      </Animated.View>
-    </View>
+          {/* Apple Music Login Button */}
+          {/* <TouchableOpacity
+            onPress={handleAppleMusicLogin}
+            activeOpacity={0.8}
+            style={styles.loginButton}
+          >
+            <View style={[styles.buttonInner, styles.appleButton]}>
+              <AppleMusicLogo width={24} height={24} />
+              <Text style={[styles.buttonText, styles.appleButtonText]}>
+                Continue with Apple Music
+              </Text>
+            </View>
+            <View style={styles.comingSoonBadge}>
+              <Text style={styles.comingSoonText}>Coming Soon</Text>
+            </View>
+          </TouchableOpacity> */}
+
+          {/* Footer Text */}
+          <Text style={styles.footerText}>
+            Your music, intelligently organized
+          </Text>
+        </Animated.View>
+      </View>
+    </SafeAreaView>
   );
 }
 
-const { width } = Dimensions.get("window");
+const { width, height } = Dimensions.get("window");
 
 const styles = StyleSheet.create({
   container: {
@@ -359,95 +394,129 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
-    justifyContent: "center",
+    justifyContent: "space-between",
     paddingHorizontal: 24,
   },
 
-  // Logo Section
-  logoSection: {
+  // Top Section
+  topSection: {
+    flex: 1,
+    justifyContent: "center",
     alignItems: "center",
-    marginBottom: 80,
+    marginTop: height * 0.1,
   },
   logoContainer: {
-    marginBottom: 24,
+    marginBottom: 40,
     shadowColor: Colors.primary,
     shadowOffset: {
       width: 0,
-      height: 4,
+      height: 8,
     },
     shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowRadius: 16,
+    elevation: 10,
   },
   logoBackground: {
-    width: 88,
-    height: 88,
-    borderRadius: 28,
+    width: 100,
+    height: 100,
+    borderRadius: 30,
     justifyContent: "center",
     alignItems: "center",
   },
-  appName: {
-    fontSize: 46,
-    fontWeight: "bold",
+  textContainer: {
+    alignItems: "center",
+  },
+  welcomeText: {
+    fontSize: 48,
+    fontWeight: "800",
     color: Colors.text,
-    marginBottom: 8,
+    marginBottom: 12,
     letterSpacing: -1,
-    textShadowColor: "rgba(0, 0, 0, 0.5)",
+    textShadowColor: "rgba(0, 0, 0, 0.3)",
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  tagline: {
-    fontSize: 16,
+  subtitleText: {
+    fontSize: 18,
     color: Colors.textSecondary,
-    letterSpacing: 0.5,
+    textAlign: "center",
+    lineHeight: 26,
+    paddingHorizontal: 20,
   },
 
-  // CTA Section
-  ctaSection: {
+  // Bottom Section
+  bottomSection: {
+    paddingBottom: 40,
     alignItems: "center",
     width: "100%",
   },
   loginButton: {
     width: "100%",
-    maxWidth: Math.min(320, width - 48), // Responsive width
-    shadowColor: Colors.primary,
-    shadowOffset: {
-      width: 0,
-      height: 6,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 6,
+    maxWidth: Math.min(360, width - 48),
+    marginBottom: 16,
+    position: "relative",
   },
-  touchableButton: {
-    width: "100%",
-  },
-  loginButtonGradient: {
-    alignItems: "center",
-    justifyContent: "center",
-    paddingVertical: 16,
-    paddingHorizontal: 24,
-    borderRadius: 28,
-    minHeight: 56, // Consistent height
-  },
-  buttonContent: {
+  buttonInner: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 8,
-    width: "100%",
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    borderRadius: 30,
+    gap: 12,
   },
-  loginButtonText: {
-    fontSize: 16,
+  spotifyButton: {
+    backgroundColor: "#1DB954",
+    shadowColor: "#1DB954",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+  },
+  appleButton: {
+    backgroundColor: "#FA243C",
+    shadowColor: "#FA243C",
+    shadowOffset: {
+      width: 0,
+      height: 4,
+    },
+    shadowOpacity: 0.3,
+    shadowRadius: 10,
+    elevation: 6,
+    opacity: 0.7,
+  },
+  buttonText: {
+    fontSize: 17,
     fontWeight: "600",
-    color: Colors.background,
+    color: "#FFFFFF",
     letterSpacing: 0.3,
-    flexShrink: 1, // Allow text to shrink if needed
   },
-  disclaimer: {
-    fontSize: 13,
+  appleButtonText: {
+    color: "#FFFFFF",
+  },
+  comingSoonBadge: {
+    position: "absolute",
+    top: -8,
+    right: 20,
+    backgroundColor: Colors.warning,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 12,
+  },
+  comingSoonText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: Colors.background,
+    letterSpacing: 0.5,
+  },
+  footerText: {
+    fontSize: 14,
     color: Colors.textTertiary,
-    marginTop: 20,
+    marginTop: 24,
     letterSpacing: 0.2,
+    textAlign: "center",
   },
 });
