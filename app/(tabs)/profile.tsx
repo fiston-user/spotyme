@@ -4,7 +4,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ScrollView,
   Image,
   RefreshControl,
@@ -18,7 +17,9 @@ import { apiService } from "../../services/apiService";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { BlurView } from "expo-blur";
 import { ProfileLoadingSkeleton } from "../../components/skeletons/ProfileSkeletons";
-import { useAuthStore } from "../../stores";
+import { SessionExpiredModal } from "../../components/SessionExpiredModal";
+import { ConfirmationModal } from "../../components/ConfirmationModal";
+import { useAuthStore, useUIStore } from "../../stores";
 
 const { width: screenWidth } = Dimensions.get("window");
 
@@ -39,6 +40,7 @@ interface PlaylistStats {
 export default function ProfileScreen() {
   const router = useRouter();
   const { logout: authLogout, isAuthenticated, isHydrated } = useAuthStore();
+  const { confirmationModal, showConfirmation, hideConfirmation } = useUIStore();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [stats, setStats] = useState<PlaylistStats>({
     totalPlaylists: 0,
@@ -107,28 +109,31 @@ export default function ProfileScreen() {
     await Promise.all([loadProfile(), loadStats()]);
   };
 
-  const handleLogout = async () => {
-    Alert.alert(
-      "Logout",
-      "Are you sure you want to disconnect your Spotify account?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Logout",
-          style: "destructive",
-          onPress: async () => {
-            try {
-              // Use Zustand auth store logout which will handle everything
-              await authLogout();
-              // No need to manually navigate - the auth state change will trigger navigation
-            } catch (error) {
-              console.error("Logout error:", error);
-              Alert.alert("Error", "Failed to logout. Please try again.");
-            }
-          },
-        },
-      ]
-    );
+  const handleLogout = () => {
+    showConfirmation({
+      title: "Disconnect Spotify?",
+      message: "You'll need to log in again to access your playlists and music. Your data will remain safe.",
+      icon: "logout",
+      confirmText: "Disconnect",
+      cancelText: "Stay Connected",
+      destructive: true,
+      showLoadingOnConfirm: true,
+      onConfirm: async () => {
+        try {
+          // Use Zustand auth store logout which will handle everything
+          await authLogout();
+          hideConfirmation();
+          // No need to manually navigate - the auth state change will trigger navigation
+        } catch (error) {
+          console.error("Logout error:", error);
+          hideConfirmation();
+          // Show error via toast
+          const uiStore = useUIStore.getState();
+          uiStore.showToast("Failed to logout. Please try again.", "error", 3000);
+        }
+      },
+      onCancel: hideConfirmation,
+    });
   };
 
   const formatDate = (dateString: string) => {
@@ -431,6 +436,25 @@ export default function ProfileScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Session Expired Modal */}
+      <SessionExpiredModal />
+
+      {/* Confirmation Modal for Logout */}
+      <ConfirmationModal
+        visible={confirmationModal.visible}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        icon={confirmationModal.icon as any}
+        iconColor={confirmationModal.iconColor}
+        confirmText={confirmationModal.confirmText}
+        cancelText={confirmationModal.cancelText}
+        confirmButtonColor={confirmationModal.confirmButtonColor}
+        destructive={confirmationModal.destructive}
+        onConfirm={confirmationModal.onConfirm || (() => {})}
+        onCancel={confirmationModal.onCancel || hideConfirmation}
+        showLoadingOnConfirm={confirmationModal.showLoadingOnConfirm}
+      />
     </View>
   );
 }

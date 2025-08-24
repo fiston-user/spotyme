@@ -15,6 +15,8 @@ const errorMessageMap: Record<string, string> = {
   "Failed to authenticate": "Authentication failed. Please try again.",
   "Invalid authorization code": "Invalid authorization. Please login again.",
   "Token decryption failed": "Session expired. Please login again.",
+  "The access token expired": "Your session has expired. Please log in again.",
+  "token expired": "Your session has expired. Please log in again.",
   "MongoDB connection error":
     "Database connection issue. Please try again later.",
   "Failed to exchange authorization code":
@@ -83,7 +85,10 @@ export const errorHandler = (
   // Prepare user-facing error message
   let userMessage = "An unexpected error occurred.";
 
-  if (status < 500) {
+  // Special handling for 401 authentication errors
+  if (status === 401) {
+    userMessage = sanitizeErrorMessage(err.message) || "Your session has expired. Please log in again.";
+  } else if (status < 500) {
     // Client errors can be more specific
     userMessage = sanitizeErrorMessage(err.message);
   } else {

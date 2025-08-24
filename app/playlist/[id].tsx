@@ -6,7 +6,6 @@ import {
   StyleSheet,
   Image,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
   Linking,
   Dimensions,
@@ -18,12 +17,17 @@ import { Ionicons, MaterialIcons } from "@expo/vector-icons";
 import { Colors } from "../../constants/Colors";
 import { apiService } from "../../services/apiService";
 import { BlurView } from "expo-blur";
+import { ConfirmationModal } from "../../components/ConfirmationModal";
+import { useConfirmation } from "../../hooks/useConfirmation";
+import useUIStore from "../../stores/uiStore";
 
 const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
 export default function PlaylistDetailScreen() {
   const { id } = useLocalSearchParams();
   const router = useRouter();
+  const confirm = useConfirmation();
+  const { showToast, confirmationModal, hideConfirmation } = useUIStore();
 
   const [playlist, setPlaylist] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -50,80 +54,98 @@ export default function PlaylistDetailScreen() {
           );
         }
       } else {
-        Alert.alert("Error", response.error || "Failed to load playlist");
+        showToast(response.error || "Failed to load playlist", "error", 3000);
         router.back();
       }
     } catch (error) {
       console.error("Error fetching playlist:", error);
-      Alert.alert("Error", "Failed to load playlist");
+      showToast("Failed to load playlist", "error", 3000);
       router.back();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleExportToSpotify = async () => {
-    setIsExporting(true);
-    try {
-      const response = await apiService.exportPlaylistToSpotify(id as string);
+  const handleExportToSpotify = () => {
+    confirm({
+      title: "Export to Spotify?",
+      message: `This will create a new playlist "${
+        playlist?.name
+      }" in your Spotify account with ${playlist?.tracks?.length || 0} tracks.`,
+      icon: "cloud-upload",
+      iconColor: Colors.spotify.green,
+      confirmText: "Export Now",
+      cancelText: "Cancel",
+      confirmButtonColor: Colors.spotify.green,
+      showLoadingOnConfirm: true,
+      onConfirm: async () => {
+        setIsExporting(true);
+        try {
+          const response = await apiService.exportPlaylistToSpotify(
+            id as string
+          );
 
-      if (response.success && response.data) {
-        setSpotifyUrl(response.data.spotifyUrl);
-        Alert.alert("Success!", "Your playlist has been exported to Spotify", [
-          {
-            text: "Open in Spotify",
-            onPress: () => {
-              if (response.data.spotifyUrl) {
-                Linking.openURL(response.data.spotifyUrl);
-              }
-            },
-          },
-          { text: "OK", style: "cancel" },
-        ]);
-      } else {
-        Alert.alert("Error", response.error || "Failed to export playlist");
-      }
-    } catch (error) {
-      console.error("Error exporting playlist:", error);
-      Alert.alert("Error", "Failed to export playlist to Spotify");
-    } finally {
-      setIsExporting(false);
-    }
+          if (response.success && response.data) {
+            setSpotifyUrl(response.data.spotifyUrl);
+            showToast("Playlist exported successfully!", "success", 3000, {
+              label: "Open in Spotify",
+              onPress: () => {
+                if (response.data.spotifyUrl) {
+                  Linking.openURL(response.data.spotifyUrl);
+                }
+              },
+            });
+          } else {
+            showToast(
+              response.error || "Failed to export playlist",
+              "error",
+              3000
+            );
+          }
+        } catch (error) {
+          console.error("Error exporting playlist:", error);
+          showToast("Failed to export playlist to Spotify", "error", 3000);
+        } finally {
+          setIsExporting(false);
+        }
+      },
+    });
   };
 
   const handleDeletePlaylist = () => {
-    Alert.alert(
-      "Delete Playlist",
-      "Are you sure you want to delete this playlist?",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Delete",
-          style: "destructive",
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              const response = await apiService.deletePlaylist(id as string);
+    confirm({
+      title: "Delete Playlist?",
+      message: `Are you sure you want to delete "${
+        playlist?.name || "this playlist"
+      }"? This action cannot be undone.`,
+      icon: "delete-forever",
+      confirmText: "Delete Playlist",
+      cancelText: "Keep It",
+      destructive: true,
+      showLoadingOnConfirm: true,
+      onConfirm: async () => {
+        setIsDeleting(true);
+        try {
+          const response = await apiService.deletePlaylist(id as string);
 
-              if (response.success) {
-                Alert.alert("Success", "Playlist deleted successfully");
-                router.replace("/(tabs)/playlists");
-              } else {
-                Alert.alert(
-                  "Error",
-                  response.error || "Failed to delete playlist"
-                );
-              }
-            } catch (error) {
-              console.error("Error deleting playlist:", error);
-              Alert.alert("Error", "Failed to delete playlist");
-            } finally {
-              setIsDeleting(false);
-            }
-          },
-        },
-      ]
-    );
+          if (response.success) {
+            showToast("Playlist deleted successfully", "success", 2000);
+            router.replace("/(tabs)/playlists");
+          } else {
+            showToast(
+              response.error || "Failed to delete playlist",
+              "error",
+              3000
+            );
+          }
+        } catch (error) {
+          console.error("Error deleting playlist:", error);
+          showToast("Failed to delete playlist", "error", 3000);
+        } finally {
+          setIsDeleting(false);
+        }
+      },
+    });
   };
 
   const formatDuration = (ms: number) => {
@@ -212,23 +234,11 @@ export default function PlaylistDetailScreen() {
             {/* More Options Button with Delete */}
             <TouchableOpacity
               style={styles.moreButton}
-              onPress={() => {
-                Alert.alert("Playlist Options", "", [
-                  {
-                    text: "Delete Playlist",
-                    style: "destructive",
-                    onPress: handleDeletePlaylist,
-                  },
-                  {
-                    text: "Cancel",
-                    style: "cancel",
-                  },
-                ]);
-              }}
+              onPress={handleDeletePlaylist}
               activeOpacity={0.7}
             >
               <BlurView intensity={80} style={styles.moreButtonBlur}>
-                <MaterialIcons name="more-vert" size={22} color={Colors.text} />
+                <MaterialIcons name="delete" size={22} color={Colors.text} />
               </BlurView>
             </TouchableOpacity>
 
@@ -364,7 +374,7 @@ export default function PlaylistDetailScreen() {
             <TouchableOpacity
               style={styles.secondaryActionButton}
               onPress={() =>
-                Alert.alert("Shuffle Play", "This feature is coming soon!")
+                showToast("Shuffle play coming soon!", "info", 2000)
               }
               activeOpacity={0.7}
             >
@@ -446,6 +456,22 @@ export default function PlaylistDetailScreen() {
         {/* Bottom Spacing */}
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Confirmation Modal */}
+      <ConfirmationModal
+        visible={confirmationModal.visible}
+        title={confirmationModal.title}
+        message={confirmationModal.message}
+        icon={confirmationModal.icon as any}
+        iconColor={confirmationModal.iconColor}
+        confirmText={confirmationModal.confirmText}
+        cancelText={confirmationModal.cancelText}
+        confirmButtonColor={confirmationModal.confirmButtonColor}
+        destructive={confirmationModal.destructive}
+        onConfirm={confirmationModal.onConfirm || (() => {})}
+        onCancel={confirmationModal.onCancel || hideConfirmation}
+        showLoadingOnConfirm={confirmationModal.showLoadingOnConfirm}
+      />
     </View>
   );
 }

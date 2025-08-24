@@ -56,6 +56,7 @@
 ### Building from Source
 
 Check out our comprehensive [Build Guide](docs/BUILD_GUIDE.md) for detailed instructions on:
+
 - Setting up the development environment
 - Building the APK with EAS
 - Creating releases
@@ -103,19 +104,23 @@ npx expo start
 ## 🎯 Key Features Explained
 
 ### Smart Playlist Creation
+
 Generate playlists based on:
+
 - Song characteristics (energy, mood, tempo)
 - Your listening history
 - Similar artist recommendations
 - Custom parameters you define
 
 ### Music Analysis
+
 - **Energy Level**: How energetic or calm a track is
 - **Mood Detection**: Happy, sad, neutral mood indicators
 - **Popularity Score**: Track popularity metrics
 - **Audio Features**: Detailed audio characteristics
 
 ### Seamless Spotify Integration
+
 - Login with your Spotify account
 - Access your entire music library
 - Export playlists back to Spotify
@@ -124,6 +129,7 @@ Generate playlists based on:
 ## 📱 Latest Release
 
 ### v2.0.0 - Authentication & UI Overhaul
+
 - 🔐 Robust authentication with automatic token refresh
 - 🎨 Redesigned login experience
 - 🐛 Fixed session management issues
@@ -162,7 +168,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 - [Download Latest APK](https://github.com/fiston-user/spotyme/releases/latest)
 - [Build Documentation](docs/BUILD_GUIDE.md)
-- [API Documentation](https://api.spotyme.space)
+- [API Documentation](https://piranha-coherent-usefully.ngrok-free.app)
 
 ---
 

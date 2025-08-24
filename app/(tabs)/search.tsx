@@ -22,6 +22,7 @@ import { ArtistCarousel } from "../../components/ArtistCarousel";
 import { FeaturedSection } from "../../components/FeaturedSection";
 import { PlaylistPreviewModal } from "../../components/PlaylistPreviewModal";
 import { TrackPreviewModal } from "../../components/TrackPreviewModal";
+import { SessionExpiredModal } from "../../components/SessionExpiredModal";
 import {
   TrackListSkeleton,
   RecommendationsSkeleton,
@@ -496,6 +497,9 @@ export default function SearchScreen() {
           track={trackPreviewModal.data}
         />
       )}
+
+      {/* Session Expired Modal */}
+      <SessionExpiredModal />
     </View>
   );
 }

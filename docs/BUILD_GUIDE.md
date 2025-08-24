@@ -36,18 +36,20 @@ pnpm install
 ### Before Building a New Version
 
 1. **Update version in app.json**:
+
 ```json
 {
   "expo": {
-    "version": "2.1.0",  // Increment this
+    "version": "2.1.0", // Increment this
     "android": {
-      "runtimeVersion": "2.1.0"  // Match the version
+      "runtimeVersion": "2.1.0" // Match the version
     }
   }
 }
 ```
 
 2. **Commit your changes**:
+
 ```bash
 git add -A
 git commit -m "Release v2.1.0: Your release description"
@@ -125,14 +127,17 @@ Create a file `RELEASE_NOTES_vX.X.X.md`:
 # SpotYme vX.X.X Release Notes
 
 ## ✨ New Features
+
 - Feature 1
 - Feature 2
 
 ## 🐛 Bug Fixes
+
 - Fix 1
 - Fix 2
 
 ## 🔧 Improvements
+
 - Improvement 1
 - Improvement 2
 
@@ -190,7 +195,7 @@ gh release create v2.1.0 spotyme-v2.1.0.apk \
 
 ## Environment Configuration
 
-The app uses API URL: `https://api.spotyme.space`
+The app uses API URL: `https://piranha-coherent-usefully.ngrok-free.app`
 
 To change the API URL, update these files:
 
@@ -240,6 +245,7 @@ eas build --platform android --profile preview --clear-cache
 - **Patch (0.0.X)**: Bug fixes, small improvements
 
 Examples:
+
 - `1.0.0` → `2.0.0`: Major redesign or breaking changes
 - `2.0.0` → `2.1.0`: New features added
 - `2.1.0` → `2.1.1`: Bug fixes only
@@ -298,7 +304,7 @@ gh release delete v2.0.0 --yes
 1. **Keystore**: EAS manages the Android keystore. Keep credentials safe for app updates.
 2. **Version Updates**: ALWAYS update version in `app.json` before production releases.
 3. **Git Commits**: Commit all changes before building.
-4. **API Backend**: Ensure backend at `https://api.spotyme.space` is running.
+4. **API Backend**: Ensure backend at `https://piranha-coherent-usefully.ngrok-free.app` is running.
 5. **CORS**: Backend must accept requests from mobile apps.
 6. **Testing**: Always test APK on real device before releasing.
 7. **Release Notes**: Create detailed release notes for users.

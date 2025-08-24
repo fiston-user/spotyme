@@ -5,11 +5,28 @@ interface ModalState {
   data: any;
 }
 
+interface ConfirmationModalState {
+  visible: boolean;
+  title: string;
+  message: string;
+  icon?: string;
+  iconColor?: string;
+  confirmText?: string;
+  cancelText?: string;
+  confirmButtonColor?: string;
+  destructive?: boolean;
+  onConfirm?: () => void | Promise<void>;
+  onCancel?: () => void;
+  showLoadingOnConfirm?: boolean;
+}
+
 interface UIState {
   // Modal States
   playlistPreviewModal: ModalState;
   trackPreviewModal: ModalState;
   deleteConfirmModal: ModalState;
+  sessionExpiredModal: ModalState;
+  confirmationModal: ConfirmationModalState;
   
   // Loading States
   globalLoading: boolean;
@@ -37,6 +54,10 @@ interface UIState {
   hideTrackPreview: () => void;
   showDeleteConfirm: (data: any) => void;
   hideDeleteConfirm: () => void;
+  showSessionExpiredModal: () => void;
+  hideSessionExpiredModal: () => void;
+  showConfirmation: (config: Omit<ConfirmationModalState, 'visible'>) => void;
+  hideConfirmation: () => void;
   
   // Actions - Loading
   setGlobalLoading: (loading: boolean, message?: string) => void;
@@ -58,6 +79,21 @@ const useUIStore = create<UIState>((set, get) => ({
   playlistPreviewModal: { visible: false, data: null },
   trackPreviewModal: { visible: false, data: null },
   deleteConfirmModal: { visible: false, data: null },
+  sessionExpiredModal: { visible: false, data: null },
+  confirmationModal: {
+    visible: false,
+    title: '',
+    message: '',
+    icon: 'help-outline',
+    iconColor: undefined,
+    confirmText: 'Confirm',
+    cancelText: 'Cancel',
+    confirmButtonColor: undefined,
+    destructive: false,
+    onConfirm: undefined,
+    onCancel: undefined,
+    showLoadingOnConfirm: false,
+  },
   globalLoading: false,
   globalLoadingMessage: '',
   globalError: null,
@@ -103,6 +139,38 @@ const useUIStore = create<UIState>((set, get) => ({
   hideDeleteConfirm: () => {
     set({
       deleteConfirmModal: { visible: false, data: null },
+    });
+  },
+
+  showSessionExpiredModal: () => {
+    set({
+      sessionExpiredModal: { visible: true, data: null },
+      // Hide any existing toasts when showing session modal
+      toast: { ...get().toast, visible: false },
+    });
+  },
+
+  hideSessionExpiredModal: () => {
+    set({
+      sessionExpiredModal: { visible: false, data: null },
+    });
+  },
+
+  showConfirmation: (config) => {
+    set({
+      confirmationModal: {
+        ...config,
+        visible: true,
+      },
+    });
+  },
+
+  hideConfirmation: () => {
+    set({
+      confirmationModal: {
+        ...get().confirmationModal,
+        visible: false,
+      },
     });
   },
 
@@ -163,6 +231,21 @@ const useUIStore = create<UIState>((set, get) => ({
       playlistPreviewModal: { visible: false, data: null },
       trackPreviewModal: { visible: false, data: null },
       deleteConfirmModal: { visible: false, data: null },
+      sessionExpiredModal: { visible: false, data: null },
+      confirmationModal: {
+        visible: false,
+        title: '',
+        message: '',
+        icon: 'help-outline',
+        iconColor: undefined,
+        confirmText: 'Confirm',
+        cancelText: 'Cancel',
+        confirmButtonColor: undefined,
+        destructive: false,
+        onConfirm: undefined,
+        onCancel: undefined,
+        showLoadingOnConfirm: false,
+      },
       globalLoading: false,
       globalLoadingMessage: '',
       globalError: null,

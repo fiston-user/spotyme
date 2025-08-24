@@ -19,8 +19,16 @@ class SpotifyApiService {
       const searchTypes = type.split(",") as any;
       const data = await api.search(query, searchTypes, { limit });
       return data.body;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Search error:", error);
+      
+      // Check for token expiry specifically
+      if (error.statusCode === 401 || error.message?.includes('token expired') || error.message?.includes('access token expired')) {
+        const authError = new Error("The access token expired");
+        (authError as any).status = 401;
+        throw authError;
+      }
+      
       throw new Error("Failed to search Spotify");
     }
   }
@@ -30,8 +38,16 @@ class SpotifyApiService {
       const api = this.createApiInstance(accessToken);
       const data = await api.getTrack(trackId);
       return data.body;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get track error:", error);
+      
+      // Check for token expiry specifically
+      if (error.statusCode === 401 || error.message?.includes('token expired') || error.message?.includes('access token expired')) {
+        const authError = new Error("The access token expired");
+        (authError as any).status = 401;
+        throw authError;
+      }
+      
       throw new Error("Failed to get track");
     }
   }
@@ -134,8 +150,16 @@ class SpotifyApiService {
         });
         return data.body;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get top items error:", error);
+      
+      // Check for token expiry specifically
+      if (error.statusCode === 401 || error.message?.includes('token expired') || error.message?.includes('access token expired')) {
+        const authError = new Error("The access token expired");
+        (authError as any).status = 401;
+        throw authError;
+      }
+      
       throw new Error("Failed to get top items");
     }
   }
@@ -288,8 +312,16 @@ class SpotifyApiService {
           };
         }
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get featured content error:", error);
+      
+      // Check for token expiry specifically
+      if (error.statusCode === 401 || error.message?.includes('token expired') || error.message?.includes('access token expired')) {
+        const authError = new Error("The access token expired");
+        (authError as any).status = 401;
+        throw authError;
+      }
+      
       // Return default content if API fails
       return {
         playlists: { items: [] },
@@ -310,8 +342,16 @@ class SpotifyApiService {
         country,
       });
       return data.body;
-    } catch (error) {
+    } catch (error: any) {
       console.error("Get new releases error:", error);
+      
+      // Check for token expiry specifically
+      if (error.statusCode === 401 || error.message?.includes('token expired') || error.message?.includes('access token expired')) {
+        const authError = new Error("The access token expired");
+        (authError as any).status = 401;
+        throw authError;
+      }
+      
       // Return empty albums if API fails
       return {
         albums: { items: [] },

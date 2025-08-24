@@ -169,6 +169,26 @@ const useSearchStore = create<SearchState>()(
             apiService.getNewReleases('US', 10),
           ]);
 
+          // Check if any of the responses indicate auth failure
+          const authError = [topTracksRes, topArtistsRes, featuredRes, newReleasesRes].find(
+            res => res.error?.toLowerCase().includes('authentication') || 
+                   res.error?.toLowerCase().includes('expired') ||
+                   res.error?.toLowerCase().includes('unauthorized')
+          );
+
+          if (authError) {
+            // Set a special error that components can check
+            set({ 
+              recommendationsError: 'Session expired',
+              topTracks: [],
+              topArtists: [],
+              featuredPlaylists: [],
+              newReleases: [],
+            });
+            // The apiClient will handle showing the session expired modal
+            return;
+          }
+
           set({
             topTracks: topTracksRes.success ? topTracksRes.data?.items || [] : [],
             topArtists: topArtistsRes.success ? topArtistsRes.data?.items || [] : [],

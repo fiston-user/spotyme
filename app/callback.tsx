@@ -5,7 +5,7 @@ import * as Linking from "expo-linking";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useAuthStore } from "../stores";
 
-const API_URL = "https://api.spotyme.space";
+const API_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 
 export default function CallbackScreen() {
   const router = useRouter();

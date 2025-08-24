@@ -2,7 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import useAuthStore from "../stores/authStore";
 import useUIStore from "../stores/uiStore";
 
-const API_BASE_URL = "https://api.spotyme.space";
+const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 
 export interface ApiResponse<T = any> {
   data?: T;
@@ -158,19 +158,8 @@ class UnifiedApiClient {
     // Clear all auth data
     await this.clearAuthData();
 
-    // Show enhanced toast with action button only once
-    uiStore.showToast(
-      "Your session has expired. Please log in again to continue.",
-      "warning",
-      0, // No auto-hide
-      {
-        label: "Log In",
-        onPress: () => {
-          // Navigation will happen automatically due to auth state change
-          uiStore.hideToast();
-        },
-      }
-    );
+    // Show session expired modal instead of toast
+    uiStore.showSessionExpiredModal();
   }
 
   private async makeRequest(

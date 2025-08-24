@@ -23,7 +23,7 @@ import AppleMusicLogo from "../components/logos/Apple";
 
 WebBrowser.maybeCompleteAuthSession();
 
-const API_BASE_URL = "https://api.spotyme.space";
+const API_BASE_URL = "https://piranha-coherent-usefully.ngrok-free.app";
 
 export default function LoginScreen() {
   const router = useRouter();
