@@ -300,6 +300,20 @@ class UnifiedApiClient {
             success: false,
             error: "Authentication required. Please log in.",
           };
+        } else if (response.status === 429) {
+          // Rate limiting - show special modal
+          const retryAfter = response.headers.get('retry-after');
+          const waitSeconds = retryAfter ? parseInt(retryAfter) : 60;
+          
+          uiStore.showRateLimitModal(waitSeconds, () => {
+            // Retry the request when user clicks retry
+            this.request(endpoint, options);
+          });
+          
+          return {
+            success: false,
+            error: "Too many requests. Please wait a moment.",
+          };
         } else if (response.status === 403) {
           uiStore.showToast(
             "You don't have permission to perform this action",

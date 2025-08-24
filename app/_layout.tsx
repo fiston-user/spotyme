@@ -1,12 +1,14 @@
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { AuthToast } from '../components/AuthToast';
+import { RateLimitModal } from '../components/RateLimitModal';
 
 export default function RootLayout() {
   return (
     <>
       <StatusBar style="light" />
       <AuthToast />
+      <RateLimitModal />
       <Stack
         screenOptions={{
           headerStyle: {

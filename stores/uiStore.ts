@@ -20,6 +20,12 @@ interface ConfirmationModalState {
   showLoadingOnConfirm?: boolean;
 }
 
+interface RateLimitModalState {
+  visible: boolean;
+  retryAfter?: number; // seconds to wait
+  onRetry?: () => void; // callback to retry the failed request
+}
+
 interface UIState {
   // Modal States
   playlistPreviewModal: ModalState;
@@ -27,6 +33,7 @@ interface UIState {
   deleteConfirmModal: ModalState;
   sessionExpiredModal: ModalState;
   confirmationModal: ConfirmationModalState;
+  rateLimitModal: RateLimitModalState;
   
   // Loading States
   globalLoading: boolean;
@@ -58,6 +65,8 @@ interface UIState {
   hideSessionExpiredModal: () => void;
   showConfirmation: (config: Omit<ConfirmationModalState, 'visible'>) => void;
   hideConfirmation: () => void;
+  showRateLimitModal: (retryAfter?: number, onRetry?: () => void) => void;
+  hideRateLimitModal: () => void;
   
   // Actions - Loading
   setGlobalLoading: (loading: boolean, message?: string) => void;
@@ -93,6 +102,11 @@ const useUIStore = create<UIState>((set, get) => ({
     onConfirm: undefined,
     onCancel: undefined,
     showLoadingOnConfirm: false,
+  },
+  rateLimitModal: {
+    visible: false,
+    retryAfter: undefined,
+    onRetry: undefined,
   },
   globalLoading: false,
   globalLoadingMessage: '',
@@ -174,6 +188,28 @@ const useUIStore = create<UIState>((set, get) => ({
     });
   },
 
+  showRateLimitModal: (retryAfter, onRetry) => {
+    set({
+      rateLimitModal: {
+        visible: true,
+        retryAfter,
+        onRetry,
+      },
+      // Hide any existing toasts when showing rate limit modal
+      toast: { ...get().toast, visible: false },
+    });
+  },
+
+  hideRateLimitModal: () => {
+    set({
+      rateLimitModal: {
+        visible: false,
+        retryAfter: undefined,
+        onRetry: undefined,
+      },
+    });
+  },
+
   // Loading Actions
   setGlobalLoading: (loading, message = '') => {
     set({
@@ -245,6 +281,11 @@ const useUIStore = create<UIState>((set, get) => ({
         onConfirm: undefined,
         onCancel: undefined,
         showLoadingOnConfirm: false,
+      },
+      rateLimitModal: {
+        visible: false,
+        retryAfter: undefined,
+        onRetry: undefined,
       },
       globalLoading: false,
       globalLoadingMessage: '',
