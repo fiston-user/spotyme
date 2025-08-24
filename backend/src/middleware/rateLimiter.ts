@@ -1,7 +1,11 @@
 import rateLimit from "express-rate-limit";
-import { Request, Response } from "express";
+import { Request, Response, NextFunction } from "express";
+import { redisRateLimitStore } from "../services/redisRateLimitStore";
+import { createLogger } from "../utils/logger";
 
-// Store for tracking failed login attempts
+const logger = createLogger("rate-limiter");
+
+// Fallback store for tracking failed login attempts when Redis is unavailable
 const failedLoginAttempts = new Map<
   string,
   { count: number; resetTime: number }
@@ -27,6 +31,7 @@ export const rateLimiter = rateLimit({
     return req.path === "/health";
   },
   keyGenerator: getIdentifier,
+  ...redisRateLimitStore.createStore("general"),
 });
 
 // Strict rate limiter for authentication endpoints
@@ -38,53 +43,108 @@ export const authLimiter = rateLimit({
   legacyHeaders: false,
   skipSuccessfulRequests: true, // Don't count successful auth
   keyGenerator: getIdentifier,
+  ...redisRateLimitStore.createStore("auth"),
 });
 
 // Progressive delay for failed login attempts
-export const loginAttemptLimiter = (
+export const loginAttemptLimiter = async (
   req: Request,
   res: Response,
-  next: Function
-): any => {
+  next: NextFunction
+): Promise<any> => {
   const identifier = getIdentifier(req);
-  const now = Date.now();
 
-  const attempts = failedLoginAttempts.get(identifier);
-  if (attempts) {
-    if (now < attempts.resetTime) {
-      // Still in penalty period
-      const waitTime = Math.ceil((attempts.resetTime - now) / 1000);
+  try {
+    // Try to use Redis first
+    const penalty = await redisRateLimitStore.checkPenalty(identifier);
+    
+    if (penalty.inPenalty && penalty.resetTime) {
+      const waitTime = Math.ceil((penalty.resetTime - Date.now()) / 1000);
       return res.status(429).json({
         error: `Too many failed attempts. Please wait ${waitTime} seconds.`,
       });
-    } else if (attempts.count >= 3) {
-      // Reset after penalty period
-      failedLoginAttempts.delete(identifier);
     }
+
+    // Store original res.status to intercept auth failures
+    const originalStatus = res.status.bind(res);
+    res.status = function (code: number) {
+      if (code === 401 || code === 403) {
+        // Auth failure - track it
+        redisRateLimitStore.recordFailedAttempt(identifier).catch((error) => {
+          // Fallback to in-memory tracking
+          logger.warn({ error }, "Failed to record attempt in Redis, using fallback");
+          
+          const now = Date.now();
+          const current = failedLoginAttempts.get(identifier) || {
+            count: 0,
+            resetTime: 0,
+          };
+          current.count++;
+
+          // Progressive delays: 5s, 30s, 5min, 30min
+          const delays = [5000, 30000, 300000, 1800000];
+          const delayIndex = Math.min(current.count - 1, delays.length - 1);
+          current.resetTime = now + delays[delayIndex];
+
+          failedLoginAttempts.set(identifier, current);
+        });
+      } else if (code === 200 || code === 201) {
+        // Successful auth - clear failed attempts
+        redisRateLimitStore.clearFailedAttempts(identifier).catch(() => {
+          // Non-critical, just log
+          failedLoginAttempts.delete(identifier);
+        });
+      }
+      return originalStatus(code);
+    };
+
+    next();
+  } catch (error) {
+    // Redis unavailable, fallback to in-memory
+    logger.warn({ error }, "Redis unavailable for login attempts, using in-memory fallback");
+    
+    const now = Date.now();
+    const attempts = failedLoginAttempts.get(identifier);
+    
+    if (attempts) {
+      if (now < attempts.resetTime) {
+        // Still in penalty period
+        const waitTime = Math.ceil((attempts.resetTime - now) / 1000);
+        return res.status(429).json({
+          error: `Too many failed attempts. Please wait ${waitTime} seconds.`,
+        });
+      } else if (attempts.count >= 3) {
+        // Reset after penalty period
+        failedLoginAttempts.delete(identifier);
+      }
+    }
+
+    // Store original res.status to intercept auth failures
+    const originalStatus = res.status.bind(res);
+    res.status = function (code: number) {
+      if (code === 401 || code === 403) {
+        // Auth failure - track it
+        const current = failedLoginAttempts.get(identifier) || {
+          count: 0,
+          resetTime: 0,
+        };
+        current.count++;
+
+        // Progressive delays: 5s, 30s, 5min, 30min
+        const delays = [5000, 30000, 300000, 1800000];
+        const delayIndex = Math.min(current.count - 1, delays.length - 1);
+        current.resetTime = now + delays[delayIndex];
+
+        failedLoginAttempts.set(identifier, current);
+      } else if (code === 200 || code === 201) {
+        // Successful auth - clear failed attempts
+        failedLoginAttempts.delete(identifier);
+      }
+      return originalStatus(code);
+    };
+
+    next();
   }
-
-  // Store original res.status to intercept auth failures
-  const originalStatus = res.status.bind(res);
-  res.status = function (code: number) {
-    if (code === 401 || code === 403) {
-      // Auth failure - track it
-      const current = failedLoginAttempts.get(identifier) || {
-        count: 0,
-        resetTime: 0,
-      };
-      current.count++;
-
-      // Progressive delays: 5s, 30s, 5min, 30min
-      const delays = [5000, 30000, 300000, 1800000];
-      const delayIndex = Math.min(current.count - 1, delays.length - 1);
-      current.resetTime = now + delays[delayIndex];
-
-      failedLoginAttempts.set(identifier, current);
-    }
-    return originalStatus(code);
-  };
-
-  next();
 };
 
 // Spotify API rate limiter
@@ -95,6 +155,7 @@ export const spotifyApiLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: getIdentifier,
+  ...redisRateLimitStore.createStore("spotify"),
 });
 
 // Playlist creation rate limiter
@@ -105,6 +166,7 @@ export const playlistCreationLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req: Request) => req.session?.userId || getIdentifier(req),
+  ...redisRateLimitStore.createStore("playlist"),
 });
 
 // API key rate limiter (if using API keys in future)
@@ -119,6 +181,7 @@ export const apiKeyLimiter = rateLimit({
     const apiKey = req.headers["x-api-key"] as string;
     return apiKey || getIdentifier(req);
   },
+  ...redisRateLimitStore.createStore("apikey"),
 });
 
 // Clean up old failed attempts periodically
